@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   root: 'app',
   plugins: [react()],
-  server: { host: true }, // lets your phone open the dev site on the same Wi-Fi
+  // Port 5180 (5173 is used by another program on this Mac). host: true lets your phone
+  // open the dev site on the same Wi-Fi.
+  server: { port: 5180, host: true },
   build: { outDir: '../dist', emptyOutDir: true },
 });

@@ -14,12 +14,46 @@ A music application for reading, converting, playing and printing choral scores 
 
 ## Status
 
-Early stage. The repository was just created and the project plan is being drawn up.
+| Phase | What | State |
+|---|---|---|
+| 1 | Data model, sol-fa parser, staff display, conversion both ways, automatic checks | ✅ done |
+| 2 | Playback (each part / all parts), repeats and endings, follow-along, summary | next |
+| 3 | Printing and PDF export | planned |
+| 4 | Photo upload and reading, review/edit screen | planned |
+| 5 | Save/open, MusicXML export, mobile polish | planned |
+
+## Try it
+
+```bash
+npm install
+npm run dev     # open http://localhost:5180
+npm test        # run the tests
+```
+
+Pick an example from the **Example** menu, or type your own score. The "How to type" link under the
+text box explains the format.
 
 ## Folder index
 
 | Path | Purpose |
 |------|---------|
 | `README.md` | Project overview and folder index (this file) |
+| `CLAUDE.md` | Detailed project notes: data model, music rules, checks, commands |
+| `package.json` | Project settings, scripts and libraries |
+| `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | Build, test and TypeScript settings |
+| `app/index.html` | The web page |
+| `app/src/App.tsx` | Main screen: editor, summary, checks, score views, converted text |
+| `app/src/components/` | `StaffView`, `SolfaView`, `SummaryPanel`, `FlagsPanel` |
+| `app/src/render/staffRenderer.ts` | Draws staff notation with VexFlow |
+| `app/src/examples.ts` | Example scores in the Example menu |
+| `app/src/styles/app.css` | Styles |
+| `shared/model/` | The single score data model (`types.ts`), exact fractions, helpers |
+| `shared/convert/` | Pitch, keys and sol-fa syllables; note lengths; accidental rules |
+| `shared/textinput/` | Shared parts of the typed formats (headers, instructions, marks, lyrics) |
+| `shared/solfa/` | Sol-fa reader (`parse.ts`) and writer (`write.ts`) |
+| `shared/staff/` | Staff-text reader and writer |
+| `shared/analysis/` | Automatic checks and the analysis summary |
+| `tests/` | Test library and helpers |
+| `tests/fixtures/` | Known scores, each typed in both sol-fa and staff notation |
 
 _This index is updated whenever files are added._
