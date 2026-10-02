@@ -1,0 +1,15 @@
+% Evening Song — a test piece written for Tosingwell.
+% Covers: 3/4, pickup bar, repeat with 1st/2nd endings, D.C. al Fine, a tie over
+% the bar line, dotted rhythm, chromatic note (fe), melisma, staccato, rit., fermata.
+Title: Evening Song (test piece)
+Composer: Tosingwell test library
+Key: D   Time: 3/4   Tempo: Andante q=88
+S: :s ||: d'{mf} :- :t | l :s.f :m | [ending:1] r :- :s :|| [ending:2] r :- :- |
+S: - :fe :s | [fine] d :- :- | [rit] m{stacc}.,r :d :t, | d{ferm} :- :- [D.C. al Fine] |]
+A: :m ||: s :- :s | f :m.r :d | t, :- :m :|| t, :- :- |
+A: - :r :m | d :- :- | r :d :s, | d :- :- |]
+T: :d ||: m :- :m | r :r :r | s :- :s :|| s :- :- |
+T: - :t :l | s :- :- | s :s :m | m :- :- |]
+B: :d ||: d :- :s, | r :- :r | s, :- :s, :|| s, :- :- |
+B: - :m, :fe, | d :- :- | d :d :s, | d :- :- |]
+S-lyrics: Now the day is end- _ ing bright and fair, our song ends here with joy-ful peace

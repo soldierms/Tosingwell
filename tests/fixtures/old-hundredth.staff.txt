@@ -1,0 +1,10 @@
+% Old Hundredth — the same music as old-hundredth.solfa.txt, typed as staff notation.
+% F is sharp from the key signature (G major), so it is written "F4" as on the page.
+Title: Old Hundredth
+Composer: Louis Bourgeois (melody)
+Key: G   Time: 4/4   Tempo: q=80
+S: | G4h G4h | F4h E4h | D4h G4h | A4h B4h |]
+A: | D4h E4h | D4h B3h | A3h D4h | E4h D4h |]
+T: | B3h B3h | A3h G3h | F3h B3h | C4h G3h |]
+B: | G3h E3h | D3h E3h | D3h G2h | C3h G2h |]
+S-lyrics: All peo-ple that on earth do dwell,

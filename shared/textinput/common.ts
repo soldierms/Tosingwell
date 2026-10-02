@@ -494,7 +494,7 @@ export function buildScore(header: Header, raw: RawPart[], flags: Flag[], source
     if (firstLen > 0 && firstLen < full.n / full.d) {
       measures[0].pickup = true;
       measures.forEach((m) => (m.number = m.index));
-      flags.push({ level: 'info', code: 'pickup', measure: 0, message: 'The first bar is short, so it is treated as a pickup (anacrusis) bar, numbered 0.' });
+      flags.push({ level: 'info', code: 'pickup', measure: 0, message: 'The first bar is short, so it is treated as a pickup (anacrusis) bar, numbered 0. If it is not meant to be a pickup, it is missing beats — please check it.' });
     }
   }
 

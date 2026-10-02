@@ -21,7 +21,7 @@
 // Key changes: [key:D] s/d  — the bridge note "s/d" is s in the old key = d in the new key.
 
 import { add, div, frac, lt, mul, sub, ZERO, type Frac } from '../model/fraction';
-import type { Flag, Key, NoteEvent, Score, TimeSig, VoiceId } from '../model/types';
+import type { Flag, Key, NoteEvent, Pitch, Score, TimeSig, VoiceId } from '../model/types';
 import { VOICE_NAMES } from '../model/types';
 import { defaultDohOctave, midi, pitchClassSemitone, sameKey, solfaToPitch, SYLLABLES } from '../convert/pitch';
 import {
@@ -54,6 +54,8 @@ export interface PulseItem {
   /** Bridge note: syllable in the old key ("s" in "s/d"). */
   bridge?: string;
   octave?: number;
+  /** Extra notes sounding with this one (divisi), written "m+d". */
+  chord?: { syllable: string; octave: number }[];
   marks: NoteMarks;
   directives: Directive[];
 }
@@ -86,7 +88,11 @@ export function parsePulse(raw: string): PulseResult {
   }
 
   // 2) Read elements and separators.
-  type El = { kind: PulseItem['kind']; at: number; syllable?: string; bridge?: string; octave?: number; marks: NoteMarks; empty: boolean };
+  type Head = { syllable: string; octave: number };
+  type El = {
+    kind: PulseItem['kind']; at: number; syllable?: string; bridge?: string; octave?: number;
+    chord: Head[]; marks: NoteMarks; empty: boolean; spaced: boolean;
+  };
   const els: El[] = [];
   const seps: string[] = [];
   let i = 0;
@@ -97,10 +103,37 @@ export function parsePulse(raw: string): PulseResult {
     if (name) i += name.length;
     return name;
   };
+  const readOctave = (): number => {
+    let oct = 0;
+    while (i < text.length) {
+      const c = text[i];
+      if (c === "'" || c === '’') { oct++; i++; }
+      else if (SUPER[c]) { oct += SUPER[c]; i++; }
+      else if (SUB[c]) { oct -= SUB[c]; i++; }
+      else if (c === ',') {
+        let j = i;
+        while (text[j] === ',') j++;
+        const run = j - i;
+        let k = j;
+        while (text[k] === ' ') k++;
+        if (isNoteStart(text[k])) {
+          // Another note follows in this pulse, so the last comma divides the pulse.
+          oct -= run - 1;
+          i = j - 1;
+        } else {
+          oct -= run;
+          i = j;
+        }
+        break;
+      } else break;
+    }
+    return oct;
+  };
 
   while (true) {
+    const before = i;
     skipSpace();
-    const el: El = { kind: 'rest', at: i, marks: {}, empty: true };
+    const el: El = { kind: 'rest', at: i, chord: [], marks: {}, empty: true, spaced: i > before };
     const syl = readSyllable();
     if (syl) {
       el.kind = 'note';
@@ -112,31 +145,14 @@ export function parsePulse(raw: string): PulseResult {
         if (second) { el.bridge = syl; el.syllable = second; }
         else errors.push(`Bridge note "${syl}/" needs a syllable after "/"`);
       }
-      // Octave marks.
-      let oct = 0;
-      while (i < text.length) {
-        const c = text[i];
-        if (c === "'" || c === '’') { oct++; i++; }
-        else if (SUPER[c]) { oct += SUPER[c]; i++; }
-        else if (SUB[c]) { oct -= SUB[c]; i++; }
-        else if (c === ',') {
-          let j = i;
-          while (text[j] === ',') j++;
-          const run = j - i;
-          let k = j;
-          while (text[k] === ' ') k++;
-          if (isNoteStart(text[k]) || text[k] === '{') {
-            // The last comma divides the pulse; the others are octave marks.
-            oct -= run - 1;
-            i = j - 1;
-          } else {
-            oct -= run;
-            i = j;
-          }
-          break;
-        } else break;
+      el.octave = readOctave();
+      // Divisi: "m+d" = two notes sounding together.
+      while (text[i] === '+') {
+        i++;
+        const extra = readSyllable();
+        if (!extra) { errors.push(`"+" must be followed by a syllable in "${raw.trim()}"`); break; }
+        el.chord.push({ syllable: extra, octave: readOctave() });
       }
-      el.octave = oct;
     } else if (text[i] === '-') {
       el.kind = 'hold';
       el.empty = false;
@@ -182,14 +198,15 @@ export function parsePulse(raw: string): PulseResult {
     }
   }
 
-  // 4) Make the items. An empty element BETWEEN two separators means "no new
-  //    note here" (e.g. the gap in "d.,r"). Elsewhere, empty = rest.
+  // 4) Make the items. Nothing at all BETWEEN two separators means "no new
+  //    note here" (the gap in "d.,r"). A blank space there, or an empty
+  //    element at either end, is a rest.
   const items: PulseItem[] = els.slice(0, positions.length).map((el, k) => {
     let kind = el.kind;
-    if (el.empty && k > 0 && k < els.length - 1) kind = 'skip';
+    if (el.empty && !el.spaced && k > 0 && k < els.length - 1) kind = 'skip';
     return {
       pos: positions[k], kind, syllable: el.syllable, bridge: el.bridge, octave: el.octave,
-      marks: el.marks, directives: [],
+      chord: el.chord.length ? el.chord : undefined, marks: el.marks, directives: [],
     };
   });
   // Attach directives to the first element at or after where they were written.
@@ -349,7 +366,9 @@ export function parseSolfa(text: string): Score {
           } else if (it.kind === 'note') {
             const key = keys.at(b, offset);
             const pitch = solfaToPitch(it.syllable!, it.octave ?? 0, key, dohOctave(key), voice);
-            const ev = newEvent('note', pitch ? [pitch] : [], ZERO);
+            const extra = (it.chord ?? []).map((c) => solfaToPitch(c.syllable, c.octave, key, dohOctave(key), voice));
+            const all = [pitch, ...extra];
+            const ev = newEvent('note', all.every(Boolean) ? (all as Pitch[]) : [], ZERO);
             if (it.bridge) {
               ev.bridgeFrom = it.bridge;
               const oldKey = keys.before(b, offset);

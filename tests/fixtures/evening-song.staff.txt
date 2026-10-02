@@ -1,0 +1,14 @@
+% Evening Song — the same music as evening-song.solfa.txt, typed as staff notation.
+% Key of D: F and C are sharp from the key signature.
+Title: Evening Song (test piece)
+Composer: Tosingwell test library
+Key: D   Time: 3/4   Tempo: Andante q=88
+S: | A4q ||: D5h{mf} C5q | B4q A4e G4e F4q | [ending:1] E4h A4q :|| [ending:2] E4h.~ |
+S: | E4q G#4q A4q | [fine] D4h. | [rit] F4e.{stacc} E4s D4q C4q | D4h.{ferm} [D.C. al Fine] |]
+A: | F4q ||: A4h A4q | G4q F4e E4e D4q | C4h F4q :|| C4h.~ |
+A: | C4q E4q F4q | D4h. | E4q D4q A3q | D4h. |]
+T: | D3q ||: F3h F3q | E3q E3q E3q | A3h A3q :|| A3h.~ |
+T: | A3q C4q B3q | A3h. | A3q A3q F3q | F3h. |]
+B: | D3q ||: D3h A2q | E3h E3q | A2h A2q :|| A2h.~ |
+B: | A2q F2q G#2q | D3h. | D3q D3q A2q | D3h. |]
+S-lyrics: Now the day is end- _ ing bright and fair, our song ends here with joy-ful peace
