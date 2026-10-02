@@ -1,0 +1,17 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+github_pat.txt
+*.pem
+
+# OS / editor junk
+.DS_Store
+*.log
+.vscode/
+.idea/
