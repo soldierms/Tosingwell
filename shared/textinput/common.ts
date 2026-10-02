@@ -567,6 +567,7 @@ export function splitBars(content: string, repeatStart = false): { bars: BarText
   let cur: BarText = { text: '', repeatStart: repeatStart || undefined };
   let depth = 0;
   let sawBarline = false;
+  let prevTok = '';
   for (let i = 0; i < content.length; ) {
     const ch = content[i];
     const tok = depth === 0 ? BARLINES.find((b) => content.startsWith(b, i)) : undefined;
@@ -578,8 +579,18 @@ export function splitBars(content: string, repeatStart = false): { bars: BarText
       continue;
     }
     const atLineStart = !sawBarline && cur.text.trim() === '';
+    // Blank space between two bar lines is a whole-bar rest only between plain "|" lines;
+    // ":|| ||:" is just two signs written apart.
+    const joinsSigns = sawBarline && cur.text.trim() === '' && (prevTok !== '|' || tok !== '|');
     sawBarline = true;
     i += tok.length;
+    prevTok = tok;
+    if (joinsSigns) {
+      if (tok.endsWith('||:')) cur.repeatStart = true;
+      if (tok.startsWith(':') && bars.length) bars[bars.length - 1].repeatEnd = true;
+      if (tok === '|]' && bars.length) bars[bars.length - 1].finalBar = true;
+      continue;
+    }
     if (atLineStart) {
       // A bar line at the start of a line only opens the first bar.
       if (tok.endsWith('||:')) cur.repeatStart = true;

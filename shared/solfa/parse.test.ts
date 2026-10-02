@@ -130,3 +130,16 @@ describe('parseSolfa', () => {
     expect(s.flags.some((f) => f.code === 'unread-line')).toBe(true);
   });
 });
+
+describe('bar lines', () => {
+  it('treats ":|| ||:" as two signs, not an empty bar', () => {
+    const s = parseSolfa('Key: C\nTime: 2/4\nS: ||: d :r :|| ||: m :f :||');
+    expect(s.measures.length).toBe(2);
+    expect(s.measures[0].repeatEnd).toBe(true);
+    expect(s.measures[1].repeatStart).toBe(true);
+  });
+  it('keeps "| |" as a whole-bar rest', () => {
+    const s = parseSolfa('Key: C\nTime: 2/4\nS: | d :r | | m :f |');
+    expect(bars(s)).toEqual(['C4:1/4 D4:1/4', 'r:1/2', 'E4:1/4 F4:1/4']);
+  });
+});
