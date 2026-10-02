@@ -18,8 +18,8 @@ A music application for reading, converting, playing and printing choral scores 
 |---|---|---|
 | 1 | Data model, sol-fa parser, staff display, conversion both ways, automatic checks | ✅ done |
 | 2 | Playback (each part / all parts), repeats and endings, follow-along, summary | ✅ done |
-| 3 | Printing and PDF export | next |
-| 4 | Photo upload and reading, review/edit screen | planned |
+| 3 | Printing and PDF export | ✅ done |
+| 4 | Photo upload and reading, review/edit screen | next |
 | 5 | Save/open, MusicXML export, mobile polish | planned |
 
 ## Try it
@@ -33,6 +33,7 @@ npm test        # run the tests
 Pick an example from the **Example** menu, or type your own score. The "How to type" link under the
 text box explains the format. To listen: check the play order in the **Play** box, tick
 "I have checked this order", then press **Play**. Piano sounds are loaded from the internet the first time.
+To print or make a PDF, use **🖨 Print** or **⬇ Export PDF** above the score.
 
 ## Folder index
 
@@ -44,7 +45,9 @@ text box explains the format. To listen: check the play order in the **Play** bo
 | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | Build, test and TypeScript settings |
 | `app/index.html` | The web page |
 | `app/src/App.tsx` | Main screen: editor, summary, checks, score views, converted text |
-| `app/src/components/` | `StaffView`, `SolfaView`, `SummaryPanel`, `FlagsPanel`, `PlayerPanel` (play controls) |
+| `app/src/components/` | `StaffView`, `SolfaView`, `SummaryPanel`, `FlagsPanel`, `PlayerPanel` (play controls), `PrintDialog` (print / PDF window) |
+| `app/src/print/buildPages.ts` | Builds the printed pages (header, music, page numbers) |
+| `app/src/render/fonts.ts` | Waits (briefly) for the music font before drawing |
 | `app/src/audio/player.ts` | Plays the score with Tone.js piano sounds, one channel per voice |
 | `app/src/render/staffRenderer.ts` | Draws staff notation with VexFlow |
 | `app/src/examples.ts` | Example scores in the Example menu |
@@ -56,6 +59,7 @@ text box explains the format. To listen: check the play order in the **Play** bo
 | `shared/staff/` | Staff-text reader and writer |
 | `shared/analysis/` | Automatic checks and the analysis summary |
 | `shared/playback/` | Play order from repeats/D.C./D.S. (`expand.ts`) and the timed note list (`schedule.ts`) |
+| `shared/print/` | Paper sizes and page breaking for printing |
 | `tests/` | Test library and helpers |
 | `tests/fixtures/` | Known scores, each typed in both sol-fa and staff notation |
 

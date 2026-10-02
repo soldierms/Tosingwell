@@ -16,6 +16,8 @@ interface Props {
   parts?: VoiceId[];
   /** Note ids to highlight (follow-along playback). */
   highlight?: Set<string>;
+  /** Printing: no colours, no key line above (the page header has it). */
+  plain?: boolean;
 }
 
 const FONT = 17;
@@ -24,11 +26,12 @@ const ROW = 30; // height of a row of notes
 const LYRIC_ROW = 20;
 const LABEL_W = 34;
 const SEP_W = CHAR * 1.6;
+const REPEAT_PAD = 12; // room for repeat dots next to a bar line
 
 /** Text shown for a piece (without {marks}). */
 const shown = (p: SolfaPiece) => p.text.replace(/\{[^}]*\}/g, '');
 
-export function SolfaView({ score, width, flaggedBars, parts: only, highlight }: Props) {
+export function SolfaView({ score, width, flaggedBars, parts: only, highlight, plain }: Props) {
   const layout = useMemo(() => buildLayout(score, width, only), [score, width, only]);
   const events = useMemo(() => {
     const map = new Map<string, NoteEvent>();
@@ -51,9 +54,10 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
     const bottom = y - 30;
 
     return (
-      <g key={si} className="solfa-system">
-        {sys.bars.map(({ b, x, w }) => {
+      <g key={si} className="solfa-system" data-y0={top} data-y1={y - 20}>
+        {sys.bars.map(({ b, x, w, k }) => {
           const m = score.measures[b];
+          const rowMids = rows.map((r) => r.rowTop + ROW / 2 - 5);
           const firstRowTop = rows[0].rowTop;
           const lastRowBottom = rows[rows.length - 1].rowTop + ROW - 6;
           const instrs = [...layout.bars[b].before, ...layout.bars[b].after].map(prettyDirective).filter(Boolean);
@@ -74,17 +78,17 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
               )}
               {!m.pickup && b === sys.bars[0].b && <text x={x + 2} y={firstRowTop - 12} fontSize={10} className="muted-fill">{m.number}</text>}
               {/* Bar line at the start of the bar */}
-              <BarLine x={x} y1={firstRowTop} y2={lastRowBottom} kind={m.repeatStart ? 'repeatStart' : 'single'} />
+              <BarLine x={x} y1={firstRowTop} y2={lastRowBottom} rowMids={rowMids} kind={m.repeatStart ? 'repeatStart' : 'single'} />
               {/* Bar line at the end of the bar */}
-              <BarLine x={x + w} y1={firstRowTop} y2={lastRowBottom} kind={m.repeatEnd ? 'repeatEnd' : m.finalBar || b === score.measures.length - 1 ? 'final' : m.doubleBar ? 'double' : 'single'} />
+              <BarLine x={x + w} y1={firstRowTop} y2={lastRowBottom} rowMids={rowMids} kind={m.repeatEnd ? 'repeatEnd' : m.finalBar || b === score.measures.length - 1 ? 'final' : m.doubleBar ? 'double' : 'single'} />
               {rows.map(({ sp, rowTop }) => {
                 const bar = sp.bars[b];
                 if (!bar) return null;
-                let px = x + CHAR * 0.8;
+                let px = x + CHAR * 0.8 + (m.repeatStart ? REPEAT_PAD : 0);
                 return bar.pulses.map((pulse, pi) => {
                   const pw = layout.pulseWidths[b][pi] ?? CHAR * 2;
                   const startX = px;
-                  px += pw + SEP_W;
+                  px += (pw + SEP_W) * k; // k stretches the line to the full width
                   let cx = startX;
                   const els = pulse.pieces.map((piece, k) => {
                     if (piece.kind === 'dir') {
@@ -96,7 +100,7 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
                     cx += (txt.length + (piece.bridge ? piece.bridge.length * 0.7 : 0)) * CHAR;
                     if (piece.kind === 'sep') return <text key={k} x={at} y={rowTop + ROW / 2} fontSize={FONT} className="solfa-sep">{txt}</text>;
                     const ev = piece.eventId ? events.get(piece.eventId) : undefined;
-                    const low = ev && (ev.confidence ?? 1) < LOW_CONFIDENCE;
+                    const low = !plain && ev && (ev.confidence ?? 1) < LOW_CONFIDENCE;
                     const hl = piece.eventId && highlight?.has(piece.eventId);
                     return (
                       <g key={k}>
@@ -118,7 +122,7 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
                   return (
                     <g key={pi}>
                       {els}
-                      {pi < bar.pulses.length - 1 && <text x={startX + pw + SEP_W * 0.2} y={rowTop + ROW / 2} fontSize={FONT} className="solfa-sep">:</text>}
+                      {pi < bar.pulses.length - 1 && <text x={px - SEP_W * 0.8} y={rowTop + ROW / 2} fontSize={FONT} className="solfa-sep">:</text>}
                     </g>
                   );
                 });
@@ -136,7 +140,7 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
   const m0 = score.measures[0];
   return (
     <div className="solfa-view">
-      {m0 && (
+      {m0 && !plain && (
         <p className="solfa-key">
           {keyLabel(m0.key)} · {m0.time.beats}/{m0.time.beatType}
         </p>
@@ -148,8 +152,15 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight }:
   );
 }
 
-function BarLine({ x, y1, y2, kind }: { x: number; y1: number; y2: number; kind: 'single' | 'double' | 'final' | 'repeatStart' | 'repeatEnd' }) {
-  const mid = (y1 + y2) / 2;
+function BarLine({ x, y1, y2, kind, rowMids }: { x: number; y1: number; y2: number; rowMids: number[]; kind: 'single' | 'double' | 'final' | 'repeatStart' | 'repeatEnd' }) {
+  // Repeat dots go on every row, in their own space beside the bar line.
+  const dots = (dx: number) =>
+    rowMids.map((my, i) => (
+      <g key={i}>
+        <circle cx={x + dx} cy={my - 4} r={1.8} fill="currentColor" />
+        <circle cx={x + dx} cy={my + 4} r={1.8} fill="currentColor" />
+      </g>
+    ));
   return (
     <g className="barline">
       <line x1={x} x2={x} y1={y1} y2={y2} stroke="currentColor" strokeWidth={kind === 'final' ? 1 : 1.2} />
@@ -158,15 +169,13 @@ function BarLine({ x, y1, y2, kind }: { x: number; y1: number; y2: number; kind:
       {kind === 'repeatStart' && (
         <>
           <line x1={x + 3} x2={x + 3} y1={y1} y2={y2} stroke="currentColor" strokeWidth={1} />
-          <circle cx={x + 8} cy={mid - 6} r={1.8} fill="currentColor" />
-          <circle cx={x + 8} cy={mid + 6} r={1.8} fill="currentColor" />
+          {dots(8)}
         </>
       )}
       {kind === 'repeatEnd' && (
         <>
           <line x1={x - 3} x2={x - 3} y1={y1} y2={y2} stroke="currentColor" strokeWidth={1} />
-          <circle cx={x - 8} cy={mid - 6} r={1.8} fill="currentColor" />
-          <circle cx={x - 8} cy={mid + 6} r={1.8} fill="currentColor" />
+          {dots(-8)}
         </>
       )}
     </g>
@@ -215,12 +224,14 @@ function buildLayout(score: Score, width: number, only?: VoiceId[]) {
       });
     }
     pulseWidths.push(widths);
-    barWidths.push(CHAR * 1.6 + widths.reduce((a, w) => a + w + SEP_W, 0));
+    const m = score.measures[b];
+    const pads = (m.repeatStart ? REPEAT_PAD : 0) + (m.repeatEnd ? REPEAT_PAD : 0);
+    barWidths.push(CHAR * 1.6 + pads + widths.reduce((a, w) => a + w + SEP_W, 0));
   }
   // Pack bars into lines.
   const avail = width - LABEL_W - 8;
-  const systems: { bars: { b: number; x: number; w: number }[] }[] = [];
-  let cur: { b: number; x: number; w: number }[] = [];
+  const systems: { bars: { b: number; x: number; w: number; k: number }[] }[] = [];
+  let cur: { b: number; x: number; w: number; k: number }[] = [];
   let used = 0;
   for (let b = 0; b < nBars; b++) {
     const w = barWidths[b];
@@ -229,17 +240,24 @@ function buildLayout(score: Score, width: number, only?: VoiceId[]) {
       cur = [];
       used = 0;
     }
-    cur.push({ b, x: 0, w });
+    cur.push({ b, x: 0, w, k: 1 });
     used += w;
   }
   if (cur.length) systems.push({ bars: cur });
-  for (const s of systems) {
+  systems.forEach((s, si) => {
+    // Stretch full lines to the whole width (the last line only if it is fairly full).
+    const total = s.bars.reduce((a, bar) => a + bar.w, 0);
+    const stretch = si === systems.length - 1 && systems.length > 1 && total < avail * 0.6 ? 1 : Math.min(avail / total, 2.5);
     let x = LABEL_W;
     for (const bar of s.bars) {
+      const fixed = CHAR * 1.6 + (bar.w - CHAR * 1.6 - pulseWidths[bar.b].reduce((a, w) => a + w + SEP_W, 0));
+      const newW = bar.w * stretch;
+      bar.k = (newW - fixed) / (bar.w - fixed);
+      bar.w = newW;
       bar.x = x;
-      x += bar.w;
+      x += newW;
     }
-  }
+  });
   const bars = Array.from({ length: nBars }, (_, b) => parts[0]?.bars[b] ?? { index: b, before: [], pulses: [], after: [] });
   return { parts, pulseWidths, systems, bars };
 }

@@ -43,12 +43,17 @@ export interface StaffRenderOptions {
   flaggedBars?: Set<number>;
   /** Only draw these parts (all if not given). */
   parts?: VoiceId[];
+  /** Printing: pure black on white (no colours for uncertain notes). */
+  plain?: boolean;
 }
 
 export interface StaffRenderResult {
   height: number;
   /** SVG elements for each note event id (for highlighting / clicking). */
   noteElements: Map<string, SVGElement>;
+  /** Top and bottom (px) of each line of music, so pages can break between lines. */
+  systems: { top: number; bottom: number }[];
+  svg?: SVGSVGElement;
 }
 
 interface StaffDef {
@@ -85,6 +90,33 @@ const vexKey = (p: Pitch, c: Clef) => `${p.step.toLowerCase()}/${p.octave + (c =
 function restKey(c: Clef, stem: 'up' | 'down' | 'auto') {
   if (c === 'bass') return stem === 'up' ? 'g/3' : stem === 'down' ? 'a/2' : 'd/3';
   return stem === 'up' ? 'e/5' : stem === 'down' ? 'f/4' : 'b/4';
+}
+
+/** Diatonic position (C0 = 0) of a pitch as drawn on this clef. */
+const staffStep = (p: Pitch, c: Clef) => (p.octave + (c === 'treble8vb' ? 1 : 0)) * 7 + 'CDEFGAB'.indexOf(p.step);
+const TOP_LINE: Record<Clef, number> = { treble: 38, treble8vb: 38, bass: 26 }; // F5 / A3
+const BOTTOM_LINE: Record<Clef, number> = { treble: 30, treble8vb: 30, bass: 18 }; // E4 / G2
+
+/** How far (px) the notes and stems of a staff reach above its top line and below its bottom line. */
+function staffExtent(d: StaffDef, bars: number[]): { above: number; below: number } {
+  let above = 0;
+  let below = 0;
+  const shared = d.parts.length > 1;
+  for (const part of d.parts) {
+    for (const b of bars) {
+      for (const ev of part.measures[b]?.events ?? []) {
+        for (const p of ev.pitches) {
+          const st = staffStep(p, d.clef);
+          const mid = (TOP_LINE[d.clef] + BOTTOM_LINE[d.clef]) / 2;
+          const stemUp = shared ? part.stem === 'up' : st < mid;
+          const stem = ev.duration.n / ev.duration.d >= 1 ? 6 : 35; // whole notes have no stem
+          above = Math.max(above, (st - TOP_LINE[d.clef]) * 5 + (stemUp ? stem : 6));
+          below = Math.max(below, (BOTTOM_LINE[d.clef] - st) * 5 + (stemUp ? 6 : stem));
+        }
+      }
+    }
+  }
+  return { above: Math.max(0, above), below: Math.max(0, below) };
 }
 
 /** Rough width a bar needs, before stretching to fill the line. */
@@ -163,12 +195,13 @@ export function renderStaff(container: HTMLElement, score: Score, opts: StaffRen
   container.innerHTML = '';
   const noteElements = new Map<string, SVGElement>();
   const defs = staffDefs(score, opts.tenorClef, opts.parts);
-  if (!defs.length || !score.measures.length) return { height: 0, noteElements };
+  if (!defs.length || !score.measures.length) return { height: 0, noteElements, systems: [] };
 
   const renderer = new Renderer(container as HTMLDivElement, Renderer.Backends.SVG);
   const systems = layoutSystems(score, opts.width);
 
-  // Vertical spacing: room for lyrics under each staff.
+  // Vertical spacing, worked out per line of music: how far notes and stems
+  // reach above and below each staff, plus room for lyrics.
   const versesOn = (d: StaffDef) =>
     d.parts.reduce((n, p) => {
       const vs = new Set<number>();
@@ -176,11 +209,27 @@ export function renderStaff(container: HTMLElement, score: Score, opts: StaffRen
       return n + vs.size;
     }, 0);
   const lyricLines = defs.map(versesOn);
-  const ABOVE_FIRST = 60;
   const STAFF_H = 40;
-  const gapAfter = (i: number) => 74 + lyricLines[i] * 18;
-  const systemHeight = ABOVE_FIRST + defs.reduce((h, _d, i) => h + STAFF_H + gapAfter(i), 0) + 10;
-  const height = systems.length * systemHeight + 20;
+  const ABOVE_TOP = 46; // tempo marks, endings, D.C. text above the first staff
+  const layoutY = systems.map((sys) => {
+    const ext = defs.map((d) => staffExtent(d, sys.bars));
+    const staffY: number[] = [];
+    let y = ABOVE_TOP + ext[0].above; // top line of the first staff
+    defs.forEach((_d, i) => {
+      staffY.push(y - 40); // VexFlow puts the top line 40px below the stave's y
+      if (i < defs.length - 1) y += STAFF_H + ext[i].below + lyricLines[i] * 18 + 18 + ext[i + 1].above;
+    });
+    const last = defs.length - 1;
+    const height = y + STAFF_H + ext[last].below + lyricLines[last] * 18 + 22;
+    return { staffY, height };
+  });
+  const tops: number[] = [];
+  let acc = 0;
+  for (const l of layoutY) {
+    tops.push(acc);
+    acc += l.height;
+  }
+  const height = acc + 10;
   renderer.resize(opts.width, height);
   const ctx = renderer.getContext();
   ctx.setFont('Academico', 12);
@@ -192,13 +241,8 @@ export function renderStaff(container: HTMLElement, score: Score, opts: StaffRen
   let prevStartKey = score.measures[0].key;
 
   systems.forEach((sys, si) => {
-    const top = si * systemHeight + 10;
-    const staffY: number[] = [];
-    let y = top + ABOVE_FIRST - 40; // VexFlow puts the top line 40px below the stave's y
-    defs.forEach((_d, i) => {
-      staffY.push(y);
-      y += STAFF_H + gapAfter(i);
-    });
+    const top = tops[si];
+    const staffY = layoutY[si].staffY.map((y) => y + top);
     let x = LEFT;
     const drawnInSystem: Drawn[] = [];
     const firstStaves: Stave[] = [];
@@ -265,7 +309,7 @@ export function renderStaff(container: HTMLElement, score: Score, opts: StaffRen
         const accs = staffAccidentals(score, d.parts, b);
         for (const part of d.parts) {
           const stem = d.parts.length > 1 ? part.stem : 'auto';
-          const built = buildPartBar(score, part, b, d.clef, stem, accs, lastDrawn, ties, si);
+          const built = buildPartBar(score, part, b, d.clef, stem, accs, lastDrawn, ties, si, !!opts.plain);
           tuplets.push(...built.tuplets);
           const voice = new Voice({ numBeats: m.time.beats, beatValue: m.time.beatType }).setMode(VoiceMode.SOFT);
           voice.addTickables(built.notes);
@@ -337,7 +381,12 @@ export function renderStaff(container: HTMLElement, score: Score, opts: StaffRen
     }
   });
 
-  return { height, noteElements };
+  return {
+    height,
+    noteElements,
+    systems: systems.map((_, si) => ({ top: tops[si], bottom: tops[si] + layoutY[si].height })),
+    svg: container.querySelector('svg') ?? undefined,
+  };
 }
 
 /** Which accidentals to print in one bar of one staff (the parts sharing it count together). */
@@ -378,6 +427,7 @@ function buildPartBar(
   lastDrawn: Map<VoiceId, { note: StaveNote; system: number }>,
   ties: StaveTie[],
   system: number,
+  plain: boolean,
 ) {
   const m = score.measures[b];
   const pm = part.measures[b];
@@ -396,7 +446,7 @@ function buildPartBar(
   let prevTie = tiedIntoBar(part, b);
   pm.events.forEach((ev) => {
     const keys = ev.kind === 'rest' ? [restKey(clef, stem)] : ev.pitches.map((p) => vexKey(p, clef));
-    const lowConf = (ev.confidence ?? 1) < LOW_CONFIDENCE;
+    const lowConf = !plain && (ev.confidence ?? 1) < LOW_CONFIDENCE;
     if (ev.grace) {
       const g = new GraceNote({ keys, duration: VEX_DUR[notate(ev.duration)?.[0].base ?? 8], clef: vexClef(clef), slash: true });
       (accs.get(ev.id) ?? []).forEach((a, i) => a !== undefined && g.addModifier(new Accidental(VEX_ACC[a]), i));

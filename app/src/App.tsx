@@ -11,6 +11,7 @@ import { SolfaView } from './components/SolfaView';
 import { SummaryPanel } from './components/SummaryPanel';
 import { FlagsPanel } from './components/FlagsPanel';
 import { PlayerPanel, type FollowState } from './components/PlayerPanel';
+import { PrintDialog } from './components/PrintDialog';
 
 type Format = 'solfa' | 'staff';
 type View = 'staff' | 'solfa' | 'both';
@@ -36,6 +37,9 @@ export function App() {
   const [viewRef, width] = useWidth();
   const deferredText = useDeferredValue(text);
   const [follow, setFollow] = useState<FollowState>({ ids: new Set() });
+  // Opening the page with #print in the address goes straight to the print window.
+  const [printing, setPrinting] = useState<'print' | 'pdf' | undefined>(location.hash === '#print' ? 'print' : undefined);
+  const closePrint = useCallback(() => setPrinting(undefined), []);
   const onFollow = useCallback((f: FollowState) => setFollow(f), []);
 
   // Follow-along: keep the note being played in view.
@@ -114,6 +118,9 @@ export function App() {
                 <option value="treble8vb">own staff, octave-treble clef</option>
               </select>
             </label>
+            <span className="spacer" />
+            <button onClick={() => setPrinting('print')}>🖨 Print</button>
+            <button onClick={() => setPrinting('pdf')}>⬇ Export PDF</button>
           </div>
           <h2 className="score-title">{result.score.meta.title}</h2>
           {result.score.meta.composer && <p className="composer">{result.score.meta.composer}</p>}
@@ -138,6 +145,9 @@ export function App() {
           <pre>{convertedText}</pre>
         </section>
       </main>
+      {printing && (
+        <PrintDialog score={result.score} notation={view} tenorClef={tenorClef} mode={printing} onClose={closePrint} />
+      )}
     </div>
   );
 }

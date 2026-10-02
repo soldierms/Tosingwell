@@ -158,3 +158,67 @@ button:hover { border-color: var(--accent); }
 .staff-view .playing,
 .staff-view .playing text,
 .staff-view .playing path { fill: #0f7b5f; stroke: #0f7b5f; }
+
+/* ---------- Print window ---------- */
+.spacer { flex: 1; }
+.print-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  background: #d9d6cf;
+}
+.print-options {
+  width: 300px;
+  flex: none;
+  overflow: auto;
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  padding: 12px 14px;
+}
+.print-options h2 { margin: 0; font-size: 1.1rem; }
+.print-options .row { justify-content: space-between; }
+.print-options fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 10px; padding: 6px 10px 8px; }
+.print-options legend { font-weight: 600; padding: 0 4px; }
+.print-options label { display: block; margin: 3px 0; }
+.print-options label.stack input { display: block; width: 100%; font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.print-options .primary.big { width: 100%; padding: 10px; font-size: 1.05rem; background: var(--accent); color: #fff; border-color: var(--accent); }
+.print-options .primary.big:disabled { opacity: 0.5; }
+.print-hint { color: var(--muted); }
+.print-preview { flex: 1; overflow: auto; padding: 16px; }
+.print-pages { margin: 0 auto; width: max-content; }
+.print-page {
+  background: #fff;
+  color: #000;
+  margin: 0 auto 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.print-inner { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+.print-title-block { flex: none; text-align: center; font-family: 'Times New Roman', Times, serif; overflow: hidden; }
+.print-title { margin: 0 0 4px; font-size: 26px; font-weight: bold; }
+.print-credits { display: flex; justify-content: space-between; font-style: italic; font-size: 14px; min-height: 18px; }
+.print-meta { font-size: 14px; margin-top: 6px; font-weight: 600; }
+.print-section { font-size: 12px; margin-top: 4px; color: #333; text-transform: uppercase; letter-spacing: 0.06em; }
+.print-running { flex: none; font-family: 'Times New Roman', Times, serif; font-size: 12px; font-style: italic; border-bottom: 0.5px solid #999; }
+.print-music { flex: 1; overflow: hidden; }
+.print-music svg text { fill: #000; }
+.print-footer { flex: none; display: flex; align-items: flex-end; justify-content: center; font-family: 'Times New Roman', Times, serif; font-size: 11px; color: #222; }
+.print-scratch { position: absolute; left: -100000px; top: 0; visibility: hidden; }
+
+@media (max-width: 700px) {
+  .print-overlay { flex-direction: column; }
+  .print-options { width: auto; max-height: 50vh; border-right: none; border-bottom: 1px solid var(--line); }
+}
+
+/* Only the pages are printed: black on white, real size, one per sheet. */
+@media print {
+  #root { display: none !important; }
+  html, body { background: #fff !important; margin: 0; }
+  .print-overlay { position: static; display: block; background: none; }
+  .print-options { display: none !important; }
+  .print-preview { overflow: visible; padding: 0; }
+  .print-pages { zoom: 1 !important; width: auto; }
+  .print-page { margin: 0 !important; box-shadow: none !important; break-after: page; page-break-after: always; }
+  .print-page:last-child { break-after: auto; page-break-after: auto; }
+}

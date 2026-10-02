@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Score, VoiceId } from '../../../shared/model/types';
 import { renderStaff } from '../render/staffRenderer';
+import { musicFontReady } from '../render/fonts';
 
 interface Props {
   score: Score;
@@ -14,8 +15,6 @@ interface Props {
   highlight?: Set<string>;
 }
 
-/** VexFlow measures text with its music font, so wait until the font has loaded. */
-const fontsReady = document.fonts.load('30px Bravura').then(() => document.fonts.ready);
 
 export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlight }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -25,7 +24,7 @@ export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlig
 
   useEffect(() => {
     let cancelled = false;
-    fontsReady.then(() => {
+    musicFontReady.then(() => {
       if (cancelled || !ref.current) return;
       try {
         elements.current = renderStaff(ref.current, score, { width, tenorClef, flaggedBars, parts }).noteElements;

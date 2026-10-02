@@ -97,11 +97,27 @@ notes warned) · ties to different notes · repeats/endings/D.C./D.S./Coda/Fine 
   Follow-along polls `transport.seconds` every 50 ms (do NOT use Tone.Draw — it drops late events).
 - `app/src/components/PlayerPanel.tsx` — controls; loop plays the chosen bars as written (no repeats).
 
-## Printing rules (Phase 3)
+## Printing and PDF (Phase 3)
 
-Black on white, SVG, print-only stylesheet. Never split a bar across lines/pages; break at bar lines.
-Header: title, composer/arranger, "Key: G, Doh = G", time, tempo; page-number footer. Options: A4/Letter,
-portrait/landscape, parts, one part per page. Sol-fa print uses the traditional layout.
+Rules: black on white, SVG (vector), print-only stylesheet (`@media print` in `app.css`). Never split a bar
+across lines or pages; break at bar lines. Header: title, composer/arranger, "Key: G, Doh = G", time, tempo,
+section name; page-number footer. Options: notation (staff / sol-fa / both), A4 or US Letter (A4 default,
+remembered), portrait/landscape, which parts, all together or one part per page; title/composer/arranger
+editable in the print window. Sol-fa prints in the traditional layout.
+
+How it works:
+- `shared/print/paginate.ts` — page sizes (96 px per inch), header/footer sizes, `paginate()` puts whole lines
+  of music on pages (tested), header text helpers.
+- `app/src/print/buildPages.ts` — draws each section once at the page's content width (VexFlow, or the sol-fa
+  view via `renderToStaticMarkup`), then copies the SVG per page with a `viewBox` window onto that page's
+  lines. Both renderers report each line's top/bottom (`systems`, `data-y0/y1`).
+- `app/src/components/PrintDialog.tsx` — options + live preview, portalled to `<body>`; `@page` size is
+  injected; `window.print()` prints. **PDF export = the browser's "Save as PDF"** (keeps vector music; PDF
+  libraries would need the Bravura font embedded). `document.title` = score title so the PDF gets its name.
+- Opening the app with `#print` in the address opens the print window (used to test PDF output headlessly:
+  build, `vite preview`, then Chrome `--headless=new --virtual-time-budget=15000 --print-to-pdf`).
+- Staff spacing between staves is computed per line from how far notes/stems reach (`staffExtent`), so
+  lyrics never collide with high tenor notes. Font waiting is capped at 3 s (`app/src/render/fonts.ts`).
 
 ## Folder map
 
@@ -112,10 +128,12 @@ portrait/landscape, parts, one part per page. Sol-fa print uses the traditional 
 - `shared/analysis` — checks and summary
 - `shared/playback` — play order (repeat expansion) and timed schedule · `app/src/audio` — Tone.js player
 - `app/src` — React UI; `app/src/render/staffRenderer.ts` draws staff notation with VexFlow
+- `shared/print` — page sizes and pagination · `app/src/print` — builds printable pages
 - `tests/` — library tests + fixtures (each score typed in both notations)
 
 ## Status
 
 - Phase 1 (model, sol-fa parser, staff display, two-way conversion, checks): **done**.
 - Phase 2 (playback per part / all parts, play order, follow-along, speed, loop, count-in): **done**.
-- Next: Phase 3 printing and PDF export.
+- Phase 3 (printing and PDF export of both notations): **done**.
+- Next: Phase 4 photo upload and reading (Claude vision via a small server), review/edit screen.
