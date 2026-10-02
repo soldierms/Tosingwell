@@ -131,3 +131,30 @@ button:hover { border-color: var(--accent); }
   .layout { padding: 8px 8px 32px; gap: 8px; }
   .card { padding: 10px; }
 }
+
+/* ---------- Player ---------- */
+.player { grid-column: 1 / -1; }
+.player .label { margin: 0 0 4px; color: var(--muted); }
+.play-order ol { margin: 0 0 6px; padding-left: 22px; }
+.play-order .confirm { display: block; font-weight: 600; margin: 6px 0; }
+.transport { margin-top: 8px; }
+.transport .primary { background: var(--accent); color: #fff; border-color: var(--accent); padding: 6px 16px; }
+.transport button:disabled { opacity: 0.5; cursor: not-allowed; }
+.position { font-weight: 600; color: var(--accent); }
+.parts table { border-collapse: collapse; margin-bottom: 8px; }
+.parts td { padding: 2px 12px 2px 0; }
+.parts button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.player input[type='number'] { width: 4.5em; font: inherit; padding: 2px 4px; }
+.speed input { vertical-align: middle; width: 160px; }
+.small { font-size: 0.85rem; }
+.warning-text { color: var(--warning); }
+@media (min-width: 1000px) {
+  .player { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .player h2, .player .warning-text { grid-column: 1 / -1; }
+  .play-order { grid-row: span 6; }
+}
+
+/* Follow-along highlight on the staff */
+.staff-view .playing,
+.staff-view .playing text,
+.staff-view .playing path { fill: #0f7b5f; stroke: #0f7b5f; }

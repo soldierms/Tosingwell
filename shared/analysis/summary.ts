@@ -3,6 +3,7 @@
 import type { Flag, MeasureInfo, Score } from '../model/types';
 import { keyLabel, pitchClassName } from '../convert/pitch';
 import { tempoText } from '../textinput/write';
+import { tempoValue } from '../playback/schedule';
 
 export interface ScoreSummary {
   title: string;
@@ -67,7 +68,7 @@ export function summarize(score: Score, flags: Flag[]): ScoreSummary {
     key: m0 ? keyLabel(m0.key) : '—',
     doh: m0 ? pitchClassName(m0.key.doh, true) : '—',
     time: m0 ? `${m0.time.beats}/${m0.time.beatType}` : '—',
-    tempo: m0?.tempo ? tempoText(m0.tempo) : 'not given (playback will use q=80)',
+    tempo: tempoSummary(m0),
     bars: realBars,
     pickup: !!m0?.pickup,
     parts: score.parts.map((p) => p.name),
@@ -75,4 +76,11 @@ export function summarize(score: Score, flags: Flag[]): ScoreSummary {
     structure: structure.length ? structure : ['No repeats — played straight through'],
     counts,
   };
+}
+
+function tempoSummary(m0: MeasureInfo | undefined): string {
+  const tv = tempoValue(m0?.tempo);
+  if (!m0?.tempo) return `not given — playback will use about ${tv.bpm} beats per minute`;
+  const written = tempoText(m0.tempo);
+  return tv.guessed ? `${written} (no number given — playback will use about ${tv.bpm} beats per minute)` : written;
 }

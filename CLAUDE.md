@@ -81,6 +81,22 @@ ranges (S C4–A5, A F3–D5, T C3–A4, B E2–E4) · accidentals (chromatic no
 notes warned) · ties to different notes · repeats/endings/D.C./D.S./Coda/Fine consistency · low confidence
 (< 0.8) · unbalanced slurs. Parsers flag anything unreadable; **never invent notes to fill a gap**.
 
+## Playback (Phase 2)
+
+- `shared/playback/expand.ts` — play order from repeats, endings (incl. "1,2" + "3"), D.C./D.S., Segno,
+  To Coda/Coda, Fine. End-repeat with no start → from the beginning. After a D.C./D.S. repeats are not taken
+  and only the last ending plays (option "Take repeats again after D.C./D.S."). `describePlayOrder` gives the
+  words shown to the user, who must tick "I have checked this order" before Play.
+- `shared/playback/schedule.ts` — timed notes in seconds: tempo (number, or word → bpm guess; default q=80),
+  rit./accel. (to 70% / 130% over ~2 bars, reset by a tempo/new tempo/jump), fermata = everyone waits about
+  the note's length, ties joined (also across bars and repeats), dynamics → loudness, hairpins interpolate,
+  accent/marcato louder, staccato 45% length, legato under slurs/tenuto, grace notes 70 ms before the beat.
+  Tie continuations and rests are kept as silent entries so follow-along can highlight them.
+- `app/src/audio/player.ts` — Tone.js; Salamander piano samples from tonejs.github.io (needs internet; falls
+  back to a simple synth), one `Tone.Channel` per voice for solo/mute, count-in clicks, loop.
+  Follow-along polls `transport.seconds` every 50 ms (do NOT use Tone.Draw — it drops late events).
+- `app/src/components/PlayerPanel.tsx` — controls; loop plays the chosen bars as written (no repeats).
+
 ## Printing rules (Phase 3)
 
 Black on white, SVG, print-only stylesheet. Never split a bar across lines/pages; break at bar lines.
@@ -94,10 +110,12 @@ portrait/landscape, parts, one part per page. Sol-fa print uses the traditional 
 - `shared/textinput` — header/directive/marks/lyrics parsing + writing, score building
 - `shared/solfa` — sol-fa parser and writer · `shared/staff` — staff-text parser and writer
 - `shared/analysis` — checks and summary
+- `shared/playback` — play order (repeat expansion) and timed schedule · `app/src/audio` — Tone.js player
 - `app/src` — React UI; `app/src/render/staffRenderer.ts` draws staff notation with VexFlow
 - `tests/` — library tests + fixtures (each score typed in both notations)
 
 ## Status
 
 - Phase 1 (model, sol-fa parser, staff display, two-way conversion, checks): **done**.
-- Next: Phase 2 playback (Tone.js), repeat expansion, follow-along highlighting.
+- Phase 2 (playback per part / all parts, play order, follow-along, speed, loop, count-in): **done**.
+- Next: Phase 3 printing and PDF export.

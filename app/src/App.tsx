@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { parseSolfa } from '../../shared/solfa/parse';
 import { parseStaffText } from '../../shared/staff/parse';
 import { writeSolfa } from '../../shared/solfa/write';
@@ -10,6 +10,7 @@ import { StaffView } from './components/StaffView';
 import { SolfaView } from './components/SolfaView';
 import { SummaryPanel } from './components/SummaryPanel';
 import { FlagsPanel } from './components/FlagsPanel';
+import { PlayerPanel, type FollowState } from './components/PlayerPanel';
 
 type Format = 'solfa' | 'staff';
 type View = 'staff' | 'solfa' | 'both';
@@ -34,6 +35,16 @@ export function App() {
   const [converted, setConverted] = useState<Format>('staff');
   const [viewRef, width] = useWidth();
   const deferredText = useDeferredValue(text);
+  const [follow, setFollow] = useState<FollowState>({ ids: new Set() });
+  const onFollow = useCallback((f: FollowState) => setFollow(f), []);
+
+  // Follow-along: keep the note being played in view.
+  useEffect(() => {
+    const first = [...follow.ids][0];
+    if (!first) return;
+    const el = document.querySelector(`.score [data-note-id="${CSS.escape(first)}"]`);
+    el?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [follow.measure]);
 
   // Read the typed score → one Score model that everything below uses.
   const result = useMemo(() => {
@@ -85,6 +96,7 @@ export function App() {
 
         <SummaryPanel summary={result.summary} />
         <FlagsPanel flags={result.flags} />
+        <PlayerPanel score={result.score} errorCount={result.summary.counts.error} onFollow={onFollow} />
 
         <section className="card score" ref={viewRef}>
           <div className="row">
@@ -106,9 +118,11 @@ export function App() {
           <h2 className="score-title">{result.score.meta.title}</h2>
           {result.score.meta.composer && <p className="composer">{result.score.meta.composer}</p>}
           {(view === 'staff' || view === 'both') && (
-            <StaffView score={result.score} width={width - 2} tenorClef={tenorClef} flaggedBars={result.flaggedBars} />
+            <StaffView score={result.score} width={width - 2} tenorClef={tenorClef} flaggedBars={result.flaggedBars} highlight={follow.ids} />
           )}
-          {(view === 'solfa' || view === 'both') && <SolfaView score={result.score} width={width - 2} flaggedBars={result.flaggedBars} />}
+          {(view === 'solfa' || view === 'both') && (
+            <SolfaView score={result.score} width={width - 2} flaggedBars={result.flaggedBars} highlight={follow.ids} />
+          )}
         </section>
 
         <section className="card converted">

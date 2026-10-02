@@ -10,13 +10,17 @@ interface Props {
   tenorClef: 'bass' | 'treble8vb';
   flaggedBars?: Set<number>;
   parts?: VoiceId[];
+  /** Note ids to highlight while playing. */
+  highlight?: Set<string>;
 }
 
 /** VexFlow measures text with its music font, so wait until the font has loaded. */
 const fontsReady = document.fonts.load('30px Bravura').then(() => document.fonts.ready);
 
-export function StaffView({ score, width, tenorClef, flaggedBars, parts }: Props) {
+export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlight }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const elements = useRef(new Map<string, SVGElement>());
+  const lit = useRef<SVGElement[]>([]);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
@@ -24,7 +28,8 @@ export function StaffView({ score, width, tenorClef, flaggedBars, parts }: Props
     fontsReady.then(() => {
       if (cancelled || !ref.current) return;
       try {
-        renderStaff(ref.current, score, { width, tenorClef, flaggedBars, parts });
+        elements.current = renderStaff(ref.current, score, { width, tenorClef, flaggedBars, parts }).noteElements;
+        lit.current = [];
         setError(undefined);
       } catch (e) {
         console.error(e);
@@ -35,6 +40,19 @@ export function StaffView({ score, width, tenorClef, flaggedBars, parts }: Props
       cancelled = true;
     };
   }, [score, width, tenorClef, flaggedBars, parts]);
+
+  // Colour the notes being played (without redrawing the whole score).
+  useEffect(() => {
+    for (const el of lit.current) el.classList.remove('playing');
+    lit.current = [];
+    for (const id of highlight ?? []) {
+      const el = elements.current.get(id);
+      if (el) {
+        el.classList.add('playing');
+        lit.current.push(el);
+      }
+    }
+  }, [highlight]);
 
   return (
     <div className="staff-view">
