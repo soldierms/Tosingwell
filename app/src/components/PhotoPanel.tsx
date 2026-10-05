@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function PhotoPanel({ canAppend, onRead }: Props) {
-  const [status, setStatus] = useState<{ ready: boolean; model: string } | 'offline'>();
+  const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'gemini' | 'claude'; note?: string } | 'offline'>();
   const [image, setImage] = useState<PreparedImage>();
   const [busy, setBusy] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -67,7 +67,7 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`);
       const data = body as ReadResponse;
       onRead(data, image, mode);
-      const cost = data.usage.costUsd !== null ? ` — cost about $${data.usage.costUsd.toFixed(2)}` : '';
+      const cost = data.usage.costUsd === 0 ? ' — no charge' : data.usage.costUsd !== null ? ` — cost about $${data.usage.costUsd.toFixed(2)}` : '';
       setLast(`Read with ${data.model}${cost}. Now check it against the photo below: uncertain notes are orange, problem bars are red.`);
       setImage(undefined);
     } catch (e) {
@@ -88,7 +88,8 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       )}
       {status && status !== 'offline' && !status.ready && (
         <p className="warning-text">
-          Photo reading needs an Anthropic API key, which isn’t set up yet. Copy <code>.env.example</code> to <code>.env</code>, paste your key, and restart <code>npm run dev</code>.
+          Photo reading needs an API key, which isn’t set up yet: a free Google Gemini key or an Anthropic Claude key. Copy{' '}
+          <code>.env.example</code> to <code>.env</code>, paste your key, and restart <code>npm run dev</code>. See “Reading photos” in README.md.
         </p>
       )}
 
@@ -129,7 +130,12 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       )}
       {error && <p className="error">{error}</p>}
       {last && <p className="ok small">{last}</p>}
-      {ready && typeof status === 'object' && <p className="muted small">Reader: {status.model}. Each page costs a few cents to about a dollar, billed to your Anthropic API account.</p>}
+      {ready && typeof status === 'object' && (
+        <p className="muted small">
+          Reader: {status.provider === 'gemini' ? 'Google Gemini' : 'Anthropic Claude'} ({status.model}).{' '}
+          {status.provider === 'gemini' ? status.note : 'Each page costs a few cents to about a dollar, billed to your Anthropic API account.'}
+        </p>
+      )}
     </section>
   );
 }

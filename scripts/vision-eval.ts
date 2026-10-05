@@ -3,6 +3,7 @@
 // is NOT part of `npm test` — run it on purpose:
 //
 //   npm run test:vision                               (default model)
+//   npm run test:vision -- --provider claude          (or gemini; default: from .env)
 //   npm run test:vision -- --model claude-sonnet-5-5  (compare another model)
 //
 // Images and their correct answers:
@@ -12,7 +13,7 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_MODEL, readScore } from '../server/read';
+import { providerInfo, readWith, type Provider } from '../server/provider';
 import { readingToText } from '../shared/vision/toText';
 import { parseSolfa } from '../shared/solfa/parse';
 import { parseStaffText } from '../shared/staff/parse';
@@ -24,13 +25,14 @@ try {
 } catch {
   // handled below
 }
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('No ANTHROPIC_API_KEY found. Copy .env.example to .env and add your key first.');
+const args = process.argv.slice(2);
+const arg = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
+const info = providerInfo({ provider: arg('--provider') as Provider | undefined, model: arg('--model') });
+if (!info.ready) {
+  console.error(`No API key found for ${info.provider}. Copy .env.example to .env and add your key first.`);
   process.exit(1);
 }
-
-const args = process.argv.slice(2);
-const model = args.includes('--model') ? args[args.indexOf('--model') + 1] : process.env.READ_MODEL ?? DEFAULT_MODEL;
+const model = info.model;
 const DIR = 'tests/vision';
 const parse = (text: string, format: string): Score => (format === 'solfa' ? parseSolfa(text) : parseStaffText(text));
 
@@ -54,7 +56,8 @@ let rightBars = 0;
 let totalCost = 0;
 const report: unknown[] = [];
 
-console.log(`Reading ${images.length} image(s) with ${model}…\n`);
+console.log(`Reading ${images.length} image(s) with ${info.provider} ${model}…\n`);
+if (info.note) console.log(`(${info.note})\n`);
 for (const file of images) {
   const exp = expectedFor(file);
   if (!exp) {
@@ -65,7 +68,7 @@ for (const file of images) {
   const mediaType = /\.png$/i.test(file) ? 'image/png' : /\.webp$/i.test(file) ? 'image/webp' : 'image/jpeg';
   const started = Date.now();
   try {
-    const res = await readScore(data, mediaType, model);
+    const res = await readWith(info, data, mediaType);
     const conv = readingToText(res.reading);
     const got = parse(conv.text, conv.format);
     const want = parse(readFileSync(exp.path, 'utf8'), exp.format);

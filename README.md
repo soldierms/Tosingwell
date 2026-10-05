@@ -45,26 +45,33 @@ Dorico. **↶ Undo / ↷ Redo** undo note fixes, photo readings and opened files
 
 ## Reading photos (one-time setup)
 
-Photo reading sends the picture to Claude through Anthropic's API. This is **billed separately from a Claude
-subscription** — roughly a few cents to about a dollar per page, depending on how much music is on it (the app
-shows the cost after each reading).
+Photo reading sends the picture to an AI that can see images. You need **one** API key — choose either:
 
-1. Go to <https://console.anthropic.com>, sign in, add billing, and create an **API key**.
+| | Google Gemini | Anthropic Claude |
+|---|---|---|
+| Cost | Free tier (with daily limits) | Paid: a few cents to about a dollar per page |
+| Privacy | Google says free-tier content is **used to improve its products** | Not used for training by default |
+| Get a key | <https://aistudio.google.com/apikey> | <https://console.anthropic.com> (add billing first) |
+| `.env` line | `GEMINI_API_KEY=…` | `ANTHROPIC_API_KEY=…` |
+
+1. Create the key on the website above and copy it.
 2. In Terminal:
    ```bash
    cd ~/code/Tosingwell
    cp .env.example .env
    open -e .env
    ```
-3. Paste the key after `ANTHROPIC_API_KEY=` and save. **Never share this file**; it is already in `.gitignore`
-   so it will not be committed or pushed.
-4. Stop and restart the app (`Ctrl+C`, then `npm run dev`).
+3. Paste the key after the matching `=` and save. **Never share this file**; it is in `.gitignore`, so it is
+   not committed or pushed.
+4. Stop and restart the app (`Ctrl+C`, then `npm run dev`). The photo panel shows which reader is in use.
+
+If both keys are set, Gemini is used unless `.env` has `READ_PROVIDER=claude`.
 
 Then use **Read a photo of a score**: take or choose a photo, press **Read this page**, and check the result
 beside the photo. Click any note to fix it. Uncertain notes are orange and problem bars are red.
 
-To measure how accurately photos are read (uses the API, so it costs a little):
-`npm run test:vision` — or `npm run test:vision -- --model claude-sonnet-5-5` to compare the cheaper model.
+To measure how accurately photos are read: `npm run test:vision` (uses your key; free with Gemini's free
+tier). Compare readers with `npm run test:vision -- --provider claude` or `--provider gemini`.
 
 ## Folder index
 
@@ -84,7 +91,8 @@ To measure how accurately photos are read (uses the API, so it costs a little):
 | `app/src/components/PhotoPanel.tsx` | Take/choose a photo, quality checks, send it to be read |
 | `app/src/components/PhotoView.tsx`, `NoteEditor.tsx` | Review screen: original photo beside the music; fix a clicked note |
 | `app/src/vision/prepareImage.ts` | Turns, shrinks and checks the photo before sending |
-| `server/index.ts`, `server/read.ts` | Small server that holds the API key and asks Claude to read the photo |
+| `server/index.ts`, `server/provider.ts` | Small server that holds the API key and picks the photo reader |
+| `server/read.ts`, `server/readGemini.ts` | Photo reading with Claude, or with Google Gemini |
 | `scripts/vision-eval.ts` | Photo-reading accuracy test (`npm run test:vision`, uses the API) |
 | `.env.example` | Template for your private `.env` file (API key) |
 | `app/src/audio/player.ts` | Plays the score with Tone.js piano sounds, one channel per voice |

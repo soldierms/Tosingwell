@@ -122,8 +122,14 @@ How it works:
 
 ## Photo reading (Phase 4)
 
-- `server/` (Express, run with tsx): `GET /api/status`, `POST /api/read-score` {image base64, mediaType}.
-  Key from `.env` (`ANTHROPIC_API_KEY`, optional `READ_MODEL`); server binds 127.0.0.1 only.
+- `server/` (Express, run with tsx): `GET /api/status` ({provider, model, ready, note}), `POST /api/read-score`
+  {image base64, mediaType}. Server binds 127.0.0.1 only. `server/provider.ts` picks the reader from `.env`:
+  `READ_PROVIDER` (gemini|claude), else Gemini if `GEMINI_API_KEY` is set, else Claude (`ANTHROPIC_API_KEY`).
+- Gemini (`server/readGemini.ts`, owner asked for a free option): REST `generateContent` with `x-goog-api-key`,
+  `responseMimeType: application/json` + `responseJsonSchema` (marked deprecated in favour of `responseFormat`
+  but still documented), `mediaResolution: MEDIA_RESOLUTION_HIGH`, `thinkingConfig.thinkingLevel: HIGH`,
+  default model `gemini-3.8-flash` (free tier per Google's pricing page, 2026-10). Free tier: Google uses the
+  content to improve its products — shown in the UI and README. Not yet tested with a real key.
 - `server/read.ts`: `claude-opus-5-5` by default, streaming, `output_config.effort: "high"`, structured output
   (`json_schema` = `SCORE_READING_SCHEMA`), `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`.
   Handles refusal / max_tokens / typed API errors; returns usage and cost ($4/$20 Opus 5.5, $2/$10 Sonnet 5.5 per MTok).

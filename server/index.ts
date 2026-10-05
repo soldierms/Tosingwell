@@ -1,18 +1,19 @@
 // The small Tosingwell server. Its only job: receive a photo from the app,
-// send it to Claude with the secret API key, and return the reading.
+// send it to the AI reader (Google Gemini or Anthropic Claude, see provider.ts)
+// with the secret API key, and return the reading.
 // The key stays here (in .env), never in the browser or in git.
 
 import express from 'express';
-import { DEFAULT_MODEL, ReadError, readScore } from './read';
+import { ReadError } from './read';
+import { providerInfo, readWith } from './provider';
 
 try {
-  process.loadEnvFile('.env'); // ANTHROPIC_API_KEY=... (and optionally READ_MODEL=claude-sonnet-5-5)
+  process.loadEnvFile('.env'); // GEMINI_API_KEY=… and/or ANTHROPIC_API_KEY=… (see .env.example)
 } catch {
   // No .env file yet — the status endpoint will say so.
 }
 
 const PORT = Number(process.env.SERVER_PORT ?? 5190);
-const MODEL = process.env.READ_MODEL ?? DEFAULT_MODEL;
 const MEDIA = ['image/jpeg', 'image/png', 'image/webp'] as const;
 type Media = (typeof MEDIA)[number];
 
@@ -21,8 +22,7 @@ app.use(express.json({ limit: '25mb' }));
 
 /** Is photo reading set up? (Never reveals the key itself.) */
 app.get('/api/status', (_req, res) => {
-  const ready = !!process.env.ANTHROPIC_API_KEY || !!process.env.ANTHROPIC_AUTH_TOKEN;
-  res.json({ ready, model: MODEL });
+  res.json(providerInfo());
 });
 
 app.post('/api/read-score', async (req, res) => {
@@ -36,7 +36,7 @@ app.post('/api/read-score', async (req, res) => {
 
   const started = Date.now();
   try {
-    const result = await readScore(image, mediaType as Media, MODEL);
+    const result = await readWith(providerInfo(), image, mediaType as Media);
     console.log(`read-score: ${result.model}, ${result.usage.inputTokens} in / ${result.usage.outputTokens} out, ` +
       `$${result.usage.costUsd?.toFixed(3) ?? '?'}, ${((Date.now() - started) / 1000).toFixed(1)}s`);
     res.json(result);
@@ -49,6 +49,6 @@ app.post('/api/read-score', async (req, res) => {
 
 // Only reachable from this computer; the app (and your phone) reach it through the Vite dev server.
 app.listen(PORT, '127.0.0.1', () => {
-  const ready = !!process.env.ANTHROPIC_API_KEY;
-  console.log(`Tosingwell server on http://127.0.0.1:${PORT} — model ${MODEL}${ready ? '' : ' — NO API KEY SET (add it to .env)'}`);
+  const info = providerInfo();
+  console.log(`Tosingwell server on http://127.0.0.1:${PORT} — ${info.provider} ${info.model}${info.ready ? '' : ' — NO API KEY SET (add it to .env)'}`);
 });
