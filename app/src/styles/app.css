@@ -307,3 +307,7 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
 .bar-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .solfa-svg .bar-hit { cursor: pointer; }
 .solfa-svg .bar-hit:hover { fill: rgba(47, 93, 80, 0.06); }
+
+/* Drag and drop */
+.drop-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+  background: rgba(47, 93, 80, 0.15); border: 4px dashed var(--accent); font-size: 1.4rem; font-weight: 600; color: var(--accent); pointer-events: none; }

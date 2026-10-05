@@ -53,6 +53,12 @@ export function App() {
   const [photoPages, setPhotoPages] = useState<PhotoPage[]>([]);
   const [readingNotes, setReadingNotes] = useState<Flag[]>([]);
   const [selected, setSelected] = useState<string>();
+  const [incomingImage, setIncomingImage] = useState<{ file: File; at: number }>();
+  const [dragging, setDragging] = useState(false);
+  const takeImage = (file: File) => {
+    setIncomingImage({ file, at: Date.now() });
+    setTimeout(() => document.getElementById('photo')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
   const [notice, setNotice] = useState<string | undefined>(DRAFT ? 'Your last work was restored.' : undefined);
   // Undo / redo of whole-score changes (note fixes, photo readings, opening files, examples).
   const [undoStack, setUndoStack] = useState<{ format: Format; text: string }[]>([]);
@@ -144,6 +150,46 @@ export function App() {
   };
   const loadExample = (i: number) => startFresh(EXAMPLES[i].format, EXAMPLES[i].text);
 
+  // Paste anywhere (outside the text boxes): a picture goes to the photo reader,
+  // score text (lines starting S: A: T: B:) replaces the score — Undo brings the old one back.
+  // Drag and drop works the same way for picture files and .txt score files.
+  useEffect(() => {
+    const isTyping = (t: EventTarget | null) => t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement;
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTyping(e.target)) return;
+      const img = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+      if (img) { e.preventDefault(); takeImage(img); return; }
+      const t = e.clipboardData?.getData('text/plain') ?? '';
+      if (/^\s*[SATB]\s*:/m.test(t)) {
+        e.preventDefault();
+        startFresh(looksLike(t) ?? 'solfa', t, 'Pasted the score. ↶ Undo brings back the previous one.');
+      }
+    };
+    const onDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const f = e.dataTransfer?.files?.[0];
+      if (!f) return;
+      if (f.type.startsWith('image/')) takeImage(f);
+      else if (/\.txt$/i.test(f.name) || f.type.startsWith('text/')) {
+        const t = await f.text();
+        startFresh(looksLike(t) ?? (/\.staff\.txt$/i.test(f.name) ? 'staff' : 'solfa'), t, `Opened ${f.name}. ↶ Undo brings back the previous score.`);
+      }
+    };
+    const onOver = (e: DragEvent) => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); setDragging(true); } };
+    const onLeave = (e: DragEvent) => { if (!e.relatedTarget) setDragging(false); };
+    window.addEventListener('paste', onPaste);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    return () => {
+      window.removeEventListener('paste', onPaste);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+    };
+  });
+
   /**
    * "Type in" changed: CONVERT the score to the other notation (it is the same music).
    * If the text already is in the chosen notation, just switch how it is read.
@@ -228,6 +274,7 @@ export function App() {
           <a href="#score">Score</a>
         </nav>
       </header>
+      {dragging && <div className="drop-overlay">Drop a picture of a score, or a .txt score file</div>}
       {notice && (
         <p className="notice" role="status">
           {notice} <button className="link" onClick={() => setNotice(undefined)}>OK</button>
@@ -246,6 +293,7 @@ export function App() {
             onRedo={redo}
             onLoad={(f, t, how) => startFresh(f, t, how)}
             onDownload={() => downloadText(scoreFileName(result.score.meta.title, format), text)}
+            onPasteImage={takeImage}
             onMusicXml={() =>
               downloadText(musicXmlFileName(result.score.meta.title), exportMusicXml(result.score, { tenorClef }), 'application/vnd.recordare.musicxml+xml')
             }
@@ -281,7 +329,7 @@ export function App() {
 
         <SummaryPanel summary={result.summary} />
         <FlagsPanel flags={result.flags} />
-        <PhotoPanel canAppend={photoPages.length > 0} onRead={onRead} />
+        <PhotoPanel canAppend={photoPages.length > 0} onRead={onRead} incoming={incomingImage} />
         <PlayerPanel score={result.score} errorCount={result.summary.counts.error} onFollow={onFollow} />
 
         <section className="card score" ref={viewRef} id="score">

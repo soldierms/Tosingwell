@@ -40,6 +40,10 @@ To print or make a PDF, use **🖨 Print** or **⬇ Export PDF** above the score
 (open it again with **📂 Open file**), and **⬇ MusicXML** to open the score in MuseScore, Finale, Sibelius or
 Dorico. **↶ Undo / ↷ Redo** undo note fixes, photo readings and opened files.
 
+**Copy and paste:** **📋 Copy** copies the score text; **📥 Paste** (or ⌘V / Ctrl+V anywhere outside the
+text boxes) pastes score text — or a picture of a score, which goes straight to the photo reader. You can also
+drag a picture or a `.txt` score file onto the page, or choose a picture with **📂 Open file**.
+
 **On your phone:** open the Network address shown by `npm run dev` (same Wi-Fi), then use the browser's
 **Share → Add to Home Screen** (iPhone) or **⋮ → Add to Home screen** (Android) to get a Tosingwell icon.
 

@@ -35,9 +35,11 @@ interface Props {
   /** True when the current score came from a photo, so a next page can be added. */
   canAppend: boolean;
   onRead: (res: ReadResponse, image: PreparedImage, mode: 'new' | 'append') => void;
+  /** A picture pasted or dropped anywhere on the page. */
+  incoming?: { file: File; at: number };
 }
 
-export function PhotoPanel({ canAppend, onRead }: Props) {
+export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'gemini' | 'claude'; note?: string } | 'offline'>();
   const [image, setImage] = useState<PreparedImage>();
   const [busy, setBusy] = useState(false);
@@ -97,6 +99,11 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+
+  useEffect(() => {
+    if (incoming) choose([incoming.file] as unknown as FileList);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
 
   const read = async (mode: 'new' | 'append') => {
     if (!image) return;
@@ -162,6 +169,7 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       <div className="row">
         <button onClick={() => camera.current?.click()} disabled={busy}>📷 Take a photo</button>
         <button onClick={() => picker.current?.click()} disabled={busy}>🖼 Choose a picture</button>
+        <span className="muted small">or paste a picture (⌘V / Ctrl+V), or drag it onto the page</span>
         <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { choose(e.target.files); e.target.value = ''; }} />
         <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden onChange={(e) => { choose(e.target.files); e.target.value = ''; }} />
       </div>
