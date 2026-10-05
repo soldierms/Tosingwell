@@ -153,7 +153,9 @@ export const SOLFA_OCTAVE_SHIFT: Record<VoiceId, number> = { S: 0, A: 0, T: -1, 
 /**
  * Which octave "unmarked" doh is in. Rule used: doh is in octave 4 (middle C
  * up to G above it) for keys C–G, and octave 3 for keys A and B (so doh is
- * never higher than G#4). Can be overridden per score with "Doh: A4".
+ * never higher than G#4). Checked with the owner on a real B♭ score
+ * (2026-10-05): the soprano's plain "s" is the F just above middle C, so
+ * plain d is the B♭ BELOW middle C. Can be overridden per score with "Doh: Bb4".
  */
 export function defaultDohOctave(key: Key): number {
   return ['A', 'B'].includes(key.doh.step) ? 3 : 4;

@@ -49,6 +49,9 @@ describe('sol-fa ↔ pitch (movable doh)', () => {
     expect(p('d', 0, key('C'))).toBe('C4');
     expect(p('d', 0, key('G'))).toBe('G4');
     expect(p('d', 0, key('A'))).toBe('A3');
+    // Confirmed on a real B♭ score: plain s is the F just above middle C.
+    expect(p('d', 0, key('Bb'))).toBe('Bb3');
+    expect(p('s', 0, key('Bb'))).toBe('F4');
     expect(p('m', 0, key('G'))).toBe('B4');
     expect(p('t', -1, key('G'))).toBe('F#4');
     expect(p('d', 1, key('Eb'))).toBe('Eb5');
