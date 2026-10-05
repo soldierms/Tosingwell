@@ -311,3 +311,11 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
 /* Drag and drop */
 .drop-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
   background: rgba(47, 93, 80, 0.15); border: 4px dashed var(--accent); font-size: 1.4rem; font-weight: 600; color: var(--accent); pointer-events: none; }
+
+/* Several pages to read */
+.page-queue { margin-top: 8px; }
+.page-thumbs { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 6px 0; }
+.page-thumbs li { display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; border: 2px solid var(--line); border-radius: 4px; padding: 2px; }
+.page-thumbs li img { width: 80px; height: 104px; object-fit: cover; background: #fff; }
+.page-thumbs li.done { border-color: var(--accent); }
+.page-thumbs li.now { border-color: var(--warning); }

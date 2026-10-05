@@ -143,6 +143,12 @@ How it works:
   review = `PhotoView` (bar region boxed) beside the music + `NoteEditor` (`shared/edit/editNote.ts`) — edits
   change the Score and are written back to the text in the current format (comments in the text are lost).
 - "Add as the next page" appends a reading (header removed) to the current text.
+- Multi-page: PhotoPanel keeps a queue (`pages`, `done`); several images and/or PDFs (pdf.js, `app/src/vision/pdfPages.ts`,
+  lazy-loaded, worker created explicitly, `intent: 'print'` so rendering doesn't stall in background tabs) are read in
+  order — first page 'new', rest 'append'. 429 "per minute" → waits 65 s and retries (≤3); other errors stop with
+  "Carry on from page N". App.onRead uses a `latest` ref so back-to-back appends build on the newest text.
+- Test multi-page without spending readings: `private/test/mock-server.mts` + `private/test/vite.test.config.ts`
+  (vite preview on :5182 proxying /api to the mock on :5195).
 - Sol-fa editing in the note editor: "Sol-fa for this note" (`solfaNotePitches` / edit type `solfa`) and
   "This bar" (`writeSolfa(score, replaceBars)` with key `"S:3"`, then re-parse; not applied if the bar has
   read errors, applied with a note if the beats don't add up). Converted back to staff text when the editor is

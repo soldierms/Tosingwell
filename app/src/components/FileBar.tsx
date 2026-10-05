@@ -46,7 +46,7 @@ export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo,
   const open = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    if (file.type.startsWith('image/')) {
+    if (file.type.startsWith('image/') || file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
       onPasteImage(file);
       say(`Opened the picture ${file.name} — it is ready in “Read a photo of a score”.`);
       return;
@@ -109,7 +109,7 @@ export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo,
         <span className="spacer" />
         <button onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)">↶ Undo</button>
         <button onClick={onRedo} disabled={!canRedo} title="Redo (⇧⌘Z)">↷ Redo</button>
-        <input ref={fileInput} type="file" accept=".txt,.musicxml,.mxl,.xml,text/plain,image/*" hidden onChange={(e) => { open(e.target.files); e.target.value = ''; }} />
+        <input ref={fileInput} type="file" accept=".txt,.musicxml,.mxl,.xml,text/plain,image/*,application/pdf,.pdf" hidden onChange={(e) => { open(e.target.files); e.target.value = ''; }} />
       </div>
       {message && <p className="ok small" role="status">{message}</p>}
       {showList && (

@@ -53,10 +53,11 @@ export function App() {
   const [photoPages, setPhotoPages] = useState<PhotoPage[]>([]);
   const [readingNotes, setReadingNotes] = useState<Flag[]>([]);
   const [selected, setSelected] = useState<string>();
-  const [incomingImage, setIncomingImage] = useState<{ file: File; at: number }>();
+  const [incomingImage, setIncomingImage] = useState<{ files: File[]; at: number }>();
   const [dragging, setDragging] = useState(false);
-  const takeImage = (file: File) => {
-    setIncomingImage({ file, at: Date.now() });
+  const isPicture = (f: File) => f.type.startsWith('image/') || f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  const takeImage = (file: File | File[]) => {
+    setIncomingImage({ files: Array.isArray(file) ? file : [file], at: Date.now() });
     setTimeout(() => document.getElementById('photo')?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
   const [notice, setNotice] = useState<string | undefined>(DRAFT ? 'Your last work was restored.' : undefined);
@@ -168,9 +169,11 @@ export function App() {
     const onDrop = async (e: DragEvent) => {
       e.preventDefault();
       setDragging(false);
-      const f = e.dataTransfer?.files?.[0];
+      const all = [...(e.dataTransfer?.files ?? [])];
+      const f = all[0];
       if (!f) return;
-      if (f.type.startsWith('image/')) takeImage(f);
+      const pics = all.filter(isPicture);
+      if (pics.length) takeImage(pics);
       else if (/\.txt$/i.test(f.name) || f.type.startsWith('text/')) {
         const t = await f.text();
         startFresh(looksLike(t) ?? (/\.staff\.txt$/i.test(f.name) ? 'staff' : 'solfa'), t, `Opened ${f.name}. ↶ Undo brings back the previous score.`);
@@ -212,15 +215,23 @@ export function App() {
   const convertedText = converted === 'solfa' ? result.solfaText : result.staffText;
 
   // A photo was read: put the reading into the editor (or add it as the next page).
+  // Several pages can be read one after another before React re-renders, so keep the
+  // newest score text here and build each next page on top of it.
+  const latest = useRef({ format, text });
+  latest.current = { format, text };
   const onRead = (res: ReadResponse, image: PreparedImage, mode: 'new' | 'append') => {
     const conv = readingToText(res.reading);
     const regions = res.reading.parts[0]?.bars.map((b) => b.region) ?? [];
-    if (mode === 'append' && conv.format === format) {
-      const firstBar = result.score.measures.length;
-      replace(format, `${text.trimEnd()}\n${withoutHeader(conv.text)}`);
+    const cur = latest.current;
+    if (mode === 'append' && conv.format === cur.format) {
+      const firstBar = (cur.format === 'solfa' ? parseSolfa(cur.text) : parseStaffText(cur.text)).measures.length;
+      const nextText = `${cur.text.trimEnd()}\n${withoutHeader(conv.text)}`;
+      latest.current = { format: cur.format, text: nextText };
+      replace(cur.format, nextText);
       setPhotoPages((p) => [...p, { url: image.url, regions, firstBar }]);
       setReadingNotes((n) => [...n, ...conv.notes.map((f) => ({ ...f, measure: f.measure === undefined ? undefined : f.measure + firstBar }))]);
     } else {
+      latest.current = { format: conv.format, text: conv.text };
       replace(conv.format, conv.text);
       setConverted(conv.format === 'solfa' ? 'staff' : 'solfa');
       setPhotoPages([{ url: image.url, regions, firstBar: 0 }]);

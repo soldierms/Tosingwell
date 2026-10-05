@@ -71,6 +71,11 @@ Photo reading sends the picture to an AI that can see images. You need **one** A
 
 If both keys are set, Gemini is used unless `.env` has `READ_PROVIDER=claude`.
 
+**Songs with several pages:** choose all the page pictures at once (in page order), or a whole **PDF** (up to
+40 pages), then press **Read all … pages as one song**. Pages are read one after another and joined. If the free
+limit is reached, it waits a minute by itself (per-minute limit) or stops with **Carry on from page N** (daily
+limit) — the pages already read stay in the app.
+
 Then use **Read a photo of a score**: take or choose a photo, press **Read this page**, and check the result
 beside the photo. Click any note (or any empty spot in a bar) to fix it: use the buttons, type the note in
 sol-fa (e.g. `d'`, `t,`, `fe`), or retype the whole bar in sol-fa (e.g. `s :s :- ! l :- :-`) — the staff
@@ -97,6 +102,7 @@ tier). Compare readers with `npm run test:vision -- --provider claude` or `--pro
 | `app/src/components/PhotoPanel.tsx` | Take/choose a photo, quality checks, send it to be read |
 | `app/src/components/PhotoView.tsx`, `NoteEditor.tsx` | Review screen: original photo beside the music; fix a clicked note |
 | `app/src/vision/prepareImage.ts` | Turns, shrinks and checks the photo before sending |
+| `app/src/vision/pdfPages.ts` | Turns each page of a PDF into a picture (pdf.js) |
 | `server/index.ts`, `server/provider.ts` | Small server that holds the API key and picks the photo reader |
 | `server/read.ts`, `server/readGemini.ts` | Photo reading with Claude, or with Google Gemini |
 | `scripts/vision-eval.ts` | Photo-reading accuracy test (`npm run test:vision`, uses the API) |
