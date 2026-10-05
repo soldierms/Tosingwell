@@ -63,3 +63,36 @@ describe('Gemini reader', () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Gemini free limits', () => {
+  beforeEach(() => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    delete process.env.GEMINI_API_KEY;
+  });
+  const quota = (msg: string) => new Response(JSON.stringify({ error: { code: 429, message: msg } }), { status: 429 });
+
+  it('switches to the other free model when one model has used its allowance', async () => {
+    const models: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      const m = /models\/([^:]+):/.exec(url)![1];
+      models.push(m);
+      return m === 'gemini-3.8-flash' ? quota('Quota exceeded for requests per day') : ok(m);
+    }));
+    const r = await readScoreGemini('abc', 'image/png', 'gemini-3.8-flash');
+    expect(models).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash']);
+    expect(r.model).toBe('gemini-3.5-flash');
+  });
+  it('says "tomorrow" when the daily allowance is used up everywhere', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => quota('Quota exceeded: GenerateRequestsPerDayPerProjectPerModel-FreeTier')));
+    await expect(readScoreGemini('abc', 'image/png')).rejects.toThrow('Try again tomorrow');
+  });
+  it('says "wait a minute" for the per-minute limit', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => quota('Quota exceeded: GenerateRequestsPerMinutePerProjectPerModel-FreeTier')));
+    await expect(readScoreGemini('abc', 'image/png')).rejects.toThrow('Wait a minute');
+  });
+});

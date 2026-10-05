@@ -3,6 +3,8 @@
 // JPEG, and checks the quality first (dark, low contrast, blurry, too small)
 // so you can retake a bad photo before paying for a reading.
 
+import { assessGrey } from './quality';
+
 export interface PreparedImage {
   base64: string;
   mediaType: 'image/jpeg';
@@ -59,33 +61,8 @@ function checkQuality(src: CanvasRenderingContext2D, w: number, h: number): stri
   g.drawImage(src.canvas, 0, 0, sw, sh);
   const px = g.getImageData(0, 0, sw, sh).data;
   const grey = new Float32Array(sw * sh);
-  let sum = 0;
-  for (let i = 0; i < grey.length; i++) {
-    grey[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
-    sum += grey[i];
-  }
-  const mean = sum / grey.length;
-  let varSum = 0;
-  for (const v of grey) varSum += (v - mean) ** 2;
-  const contrast = Math.sqrt(varSum / grey.length);
-  // Sharpness: how strong the fine edges are (variance of the Laplacian).
-  let lapSum = 0;
-  let lapSq = 0;
-  let n = 0;
-  for (let y = 1; y < sh - 1; y++) {
-    for (let x = 1; x < sw - 1; x++) {
-      const i = y * sw + x;
-      const l = grey[i - 1] + grey[i + 1] + grey[i - sw] + grey[i + sw] - 4 * grey[i];
-      lapSum += l;
-      lapSq += l * l;
-      n++;
-    }
-  }
-  const sharpness = lapSq / n - (lapSum / n) ** 2;
-
-  if (mean < 90) warnings.push('The photo is dark. Use even daylight or a bright lamp, without shadows on the page.');
-  if (contrast < 35) warnings.push('The photo has low contrast (washed out or grey). Avoid glare and make sure the page fills the picture.');
-  if (sharpness < 60) warnings.push('The photo looks blurry. Hold the phone steady, tap the screen to focus, and keep the camera straight above the page.');
+  for (let i = 0; i < grey.length; i++) grey[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+  warnings.push(...assessGrey(grey, sw, sh).warnings);
   return warnings;
 }
 

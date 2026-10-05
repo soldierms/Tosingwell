@@ -35,11 +35,18 @@ export async function readScoreGemini(imageBase64: string, mediaType: string, mo
   const fallback = process.env.GEMINI_FALLBACK_MODEL ?? FALLBACK_GEMINI_MODEL;
   const models = fallback && fallback !== model ? [model, fallback] : [model];
   let lastStatus = 0;
-  for (const m of models) {
+  let quota: QuotaError | undefined;
+  models: for (const m of models) {
     for (let attempt = 0; attempt <= WAITS_MS.length; attempt++) {
       try {
         return await readOnce(key, imageBase64, mediaType, m);
       } catch (e) {
+        if (e instanceof QuotaError) {
+          // Each free model has its own allowance: go straight to the next model.
+          console.warn(`gemini ${m}: free limit reached (${e.detail})`);
+          quota = e;
+          continue models;
+        }
         if (!(e instanceof BusyError)) throw e;
         lastStatus = e.httpStatus;
         console.warn(`gemini ${m}: busy (${e.httpStatus}: ${e.detail}) — attempt ${attempt + 1}`);
@@ -48,7 +55,23 @@ export async function readScoreGemini(imageBase64: string, mediaType: string, mo
     }
     if (m !== models[models.length - 1]) console.warn(`gemini ${m}: still busy, trying ${models[models.length - 1]}`);
   }
+  if (quota) {
+    const daily = /per.?day|daily|PerDay/i.test(quota.detail);
+    throw new ReadError(
+      daily
+        ? "Today's free Gemini allowance is used up for all the free models. Try again tomorrow, or set up a Claude key (see README)."
+        : 'The free Gemini limit per minute has been reached. Wait a minute and try again.',
+      429,
+    );
+  }
   throw new ReadError(`Google's Gemini servers are busy right now (${lastStatus}), even after several tries. Please try again in a few minutes.`, 503);
+}
+
+/** The free allowance for this model is used up (HTTP 429). */
+class QuotaError extends Error {
+  constructor(readonly detail: string) {
+    super(detail);
+  }
 }
 
 class BusyError extends Error {
@@ -94,7 +117,7 @@ async function readOnce(key: string, imageBase64: string, mediaType: string, mod
     console.warn(`gemini ${model}: error ${res.status}: ${msg}`);
     if (res.status === 400 && /api key/i.test(msg)) throw new ReadError('The Gemini API key was not accepted. Check GEMINI_API_KEY in the .env file.', 401);
     if (res.status === 401 || res.status === 403) throw new ReadError('The Gemini API key was not accepted. Check GEMINI_API_KEY in the .env file.', 401);
-    if (res.status === 429) throw new ReadError('The free Gemini limit has been reached for now. Wait a minute (or until tomorrow for the daily limit) and try again.', 429);
+    if (res.status === 429) throw new QuotaError(msg);
     if (res.status === 404) throw new ReadError(`Gemini model "${model}" was not found. Set GEMINI_MODEL in .env to a current model.`, 400);
     if (res.status === 400) throw new ReadError(`Gemini rejected the request: ${msg}`, 400);
     throw new ReadError(`The Gemini API had a problem (${res.status}: ${msg}). Try again in a moment.`, 502);
