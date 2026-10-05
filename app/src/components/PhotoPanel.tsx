@@ -9,7 +9,27 @@ export interface ReadResponse {
   reading: ScoreReading;
   model: string;
   usage: { inputTokens: number; outputTokens: number; costUsd: number | null };
+  readingId?: string;
 }
+
+/** Readings already put into the app on this page (so a missed one can be offered once). */
+const SEEN_KEY = 'tosingwell.readingsLoaded';
+const markSeen = (id?: string) => {
+  if (!id) return;
+  try {
+    const seen = JSON.parse(sessionStorage.getItem(SEEN_KEY) ?? '[]') as string[];
+    sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen, id].slice(-20)));
+  } catch {
+    // ignore
+  }
+};
+const wasSeen = (id: string) => {
+  try {
+    return (JSON.parse(sessionStorage.getItem(SEEN_KEY) ?? '[]') as string[]).includes(id);
+  } catch {
+    return false;
+  }
+};
 
 interface Props {
   /** True when the current score came from a photo, so a next page can be added. */
@@ -24,8 +44,33 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string>();
   const [last, setLast] = useState<string>();
+  const [missed, setMissed] = useState<{ id: string; at: string; title: string | null }>();
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
+
+  // A reading that finished while this page was reloading (or the phone was locked)?
+  useEffect(() => {
+    fetch('/api/last-reading')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.available && !wasSeen(d.id) && Date.now() - Date.parse(d.at) < 2 * 60 * 60 * 1000) setMissed(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  const loadMissed = async () => {
+    try {
+      const d = await (await fetch('/api/last-reading/full')).json();
+      const url = `data:${d.mediaType};base64,${d.image}`;
+      const img: PreparedImage = { base64: d.image, mediaType: 'image/jpeg', url, width: 0, height: 0, warnings: [] };
+      markSeen(d.id);
+      onRead(d.result as ReadResponse, img, 'new');
+      setMissed(undefined);
+      setLast('Loaded the reading that finished earlier. Check it against the photo below.');
+    } catch {
+      setError('Could not load that reading. Please read the photo again.');
+    }
+  };
 
   useEffect(() => {
     fetch('/api/status')
@@ -66,6 +111,7 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       const body = await res.json().catch(() => ({ error: 'The server did not answer properly.' }));
       if (!res.ok) throw new Error(body.error ?? `Error ${res.status}`);
       const data = body as ReadResponse;
+      markSeen(data.readingId);
       onRead(data, image, mode);
       const cost = data.usage.costUsd === 0 ? ' — no charge' : data.usage.costUsd !== null ? ` — cost about $${data.usage.costUsd.toFixed(2)}` : '';
       setLast(`Read with ${data.model}${cost}. Now check it against the photo below: uncertain notes are orange, problem bars are red.`);
@@ -83,6 +129,14 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
     <section className="card photo" id="photo">
       <h2>Read a photo of a score</h2>
 
+      {missed && !busy && (
+        <p className="notice">
+          A photo reading{missed.title ? ` of “${missed.title}”` : ''} finished at {new Date(missed.at).toLocaleTimeString()} but was not shown
+          (the page reloaded while it was reading).{' '}
+          <button className="primary" onClick={loadMissed}>Load it</button>{' '}
+          <button className="link" onClick={() => { markSeen(missed.id); setMissed(undefined); }}>Not now</button>
+        </p>
+      )}
       {status === 'offline' && (
         <p className="warning-text">The photo-reading server is not running. Start the app with <code>npm run dev</code> (it starts both parts).</p>
       )}

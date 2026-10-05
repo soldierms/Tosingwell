@@ -17,6 +17,12 @@ const PORT = Number(process.env.SERVER_PORT ?? 5190);
 const MEDIA = ['image/jpeg', 'image/png', 'image/webp'] as const;
 type Media = (typeof MEDIA)[number];
 
+/**
+ * The last finished reading, kept in memory so it is not lost if the page reloads (or the phone
+ * locks) while a reading is running: the photo panel offers to load it. Cleared when the server stops.
+ */
+let lastReading: { id: string; at: string; title: string | null; image: string; mediaType: string; result: unknown } | undefined;
+
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
@@ -39,12 +45,26 @@ app.post('/api/read-score', async (req, res) => {
     const result = await readWith(providerInfo(), image, mediaType as Media);
     console.log(`read-score: ${result.model}, ${result.usage.inputTokens} in / ${result.usage.outputTokens} out, ` +
       `$${result.usage.costUsd?.toFixed(3) ?? '?'}, ${((Date.now() - started) / 1000).toFixed(1)}s`);
-    res.json(result);
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    lastReading = { id, at: new Date().toISOString(), title: result.reading.title, image, mediaType, result };
+    res.json({ ...result, readingId: id });
   } catch (e) {
     if (e instanceof ReadError) return res.status(e.status).json({ error: e.message });
     console.error(e);
     res.status(500).json({ error: 'Something went wrong while reading the photo.' });
   }
+});
+
+/** Is there a finished reading the page may have missed? (Small answer: no photo, no notes.) */
+app.get('/api/last-reading', (_req, res) => {
+  if (!lastReading) return res.json({ available: false });
+  res.json({ available: true, id: lastReading.id, at: lastReading.at, title: lastReading.title });
+});
+
+/** The full last reading, with its photo, to load into the app. */
+app.get('/api/last-reading/full', (_req, res) => {
+  if (!lastReading) return res.status(404).json({ error: 'No reading to load.' });
+  res.json(lastReading);
 });
 
 // Only reachable from this computer; the app (and your phone) reach it through the Vite dev server.
