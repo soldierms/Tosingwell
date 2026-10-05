@@ -15,3 +15,6 @@ github_pat.txt
 *.log
 .vscode/
 .idea/
+
+# Private scores (copyrighted music, never pushed)
+private/
