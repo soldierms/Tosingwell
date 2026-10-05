@@ -143,6 +143,13 @@ How it works:
   review = `PhotoView` (bar region boxed) beside the music + `NoteEditor` (`shared/edit/editNote.ts`) — edits
   change the Score and are written back to the text in the current format (comments in the text are lost).
 - "Add as the next page" appends a reading (header removed) to the current text.
+- Sol-fa editing in the note editor: "Sol-fa for this note" (`solfaNotePitches` / edit type `solfa`) and
+  "This bar" (`writeSolfa(score, replaceBars)` with key `"S:3"`, then re-parse; not applied if the bar has
+  read errors, applied with a note if the beats don't add up). Converted back to staff text when the editor is
+  in staff format. `.bar-hit` rects in SolfaView make rests/holds clickable.
+- Autosave only starts after the first real change, so opening `?example=N` never replaces a saved draft.
+  Test UI changes on another port (`vite preview --port 5182`): localStorage is per port, so the owner's
+  draft on :5180 is never touched.
 - Accuracy test images in `tests/vision/` are clean renders of our fixtures (best case). Add real photos with a
   typed answer `tests/vision/<name>.expected.<staff|solfa>.txt` to measure real-world accuracy.
 - Audiveris (dedicated OMR): not added. Pros: built for printed staff notation, deterministic, MusicXML output.

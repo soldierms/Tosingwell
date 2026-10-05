@@ -1,9 +1,10 @@
 // The small panel that opens when you click a note: fix its pitch, length,
 // accidental, tie, or mark it as correct.
 
+import { useState } from 'react';
 import type { Score } from '../../../shared/model/types';
 import { frac, eq } from '../../../shared/model/fraction';
-import { findEvent, type NoteEdit } from '../../../shared/edit/editNote';
+import { findEvent, solfaNotePitches, type NoteEdit } from '../../../shared/edit/editNote';
 import { defaultDohOctave, octaveMarks, pitchClassName, pitchToSolfa } from '../../../shared/convert/pitch';
 import { keyAt, eventStarts } from '../../../shared/model/score';
 import { LOW_CONFIDENCE } from '../../../shared/analysis/checks';
@@ -17,11 +18,18 @@ interface Props {
   score: Score;
   id: string;
   onEdit: (e: NoteEdit) => void;
+  /** This bar of this part, written in sol-fa. */
+  barText: string;
+  /** Replace this bar with new sol-fa; returns a message to show (problem or confirmation). */
+  onBarEdit: (text: string) => string | undefined;
   onClose: () => void;
 }
 
-export function NoteEditor({ score, id, onEdit, onClose }: Props) {
+export function NoteEditor({ score, id, onEdit, barText, onBarEdit, onClose }: Props) {
   const found = findEvent(score, id);
+  const [noteInput, setNoteInput] = useState<string>();
+  const [barInput, setBarInput] = useState<string>();
+  const [message, setMessage] = useState<string>();
   if (!found) return null;
   const { part, bar, index, ev } = found;
   const m = score.measures[bar];
@@ -80,7 +88,58 @@ export function NoteEditor({ score, id, onEdit, onClose }: Props) {
         <button onClick={() => onEdit({ type: 'delete' })}>Delete</button>
         {uncertain && <button className="primary" onClick={() => onEdit({ type: 'confirm' })}>✓ It’s correct</button>}
       </div>
-      <p className="muted small">Changes update the text, both notations, the checks and playback straight away.</p>
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const typed = noteInput ?? (ev.kind === 'note' ? solfa : '');
+          const check = solfaNotePitches(typed, key, score.dohOctave ?? defaultDohOctave(key), part.id);
+          if (typeof check === 'string') return setMessage(check);
+          setMessage(undefined);
+          setNoteInput(undefined);
+          onEdit({ type: 'solfa', text: typed });
+        }}
+      >
+        <label>
+          Sol-fa for this note{' '}
+          <input
+            className="solfa-input"
+            value={noteInput ?? (ev.kind === 'note' ? solfa.replace(/ \+ /g, '+') : '')}
+            onChange={(e) => setNoteInput(e.target.value)}
+            placeholder="e.g. d'  t,  fe"
+            aria-label="Sol-fa for this note"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </label>
+        <button type="submit">Set note</button>
+        <span className="muted small">' = higher octave, , = lower</span>
+      </form>
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMessage(onBarEdit(barInput ?? barText));
+          setBarInput(undefined);
+        }}
+      >
+        <label className="bar-edit">
+          This bar ({part.name}){' '}
+          <input
+            className="solfa-input wide"
+            value={barInput ?? barText}
+            onChange={(e) => setBarInput(e.target.value)}
+            aria-label={`Sol-fa for ${part.name}, this bar`}
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </label>
+        <button type="submit">Apply bar</button>
+      </form>
+      {message && <p className={/^Applied|^Updated/.test(message) ? 'ok small' : 'error small'} role="status">{message}</p>}
+      <p className="muted small">Changes update the text, both notations, the checks and playback straight away. Press Enter to apply.</p>
     </div>
   );
 }

@@ -183,14 +183,22 @@ function layoutPulse(slots: { pos: Frac; piece: SolfaPiece; dirs: string[] }[], 
 export const pulseText = (p: SolfaPulse) =>
   p.pieces.map((x) => (x.kind === 'note' && x.bridge ? `${x.bridge}/${x.text}` : x.text)).join('');
 
-export function writeSolfa(score: Score): { text: string; parts: SolfaPart[]; flags: Flag[] } {
+/** The notes of one bar as sol-fa text, e.g. "s :s :- ! l :- :-" (without bar lines). */
+export function barBodyText(bar: SolfaBar): string {
+  return bar.pulses.map(pulseText).map((t, i) => (i === 0 ? t : ':' + t)).join(' ');
+}
+
+/**
+ * Score → sol-fa text. `replaceBars` swaps in your own text for some bars
+ * (key "S:3" = soprano, bar index 3) — used when you edit a bar in sol-fa.
+ */
+export function writeSolfa(score: Score, replaceBars?: Map<string, string>): { text: string; parts: SolfaPart[]; flags: Flag[] } {
   const { parts, flags } = writeSolfaParts(score);
   const out: string[] = [headerText(score), ''];
   for (const sp of parts) {
     const part = score.parts.find((p) => p.id === sp.voice)!;
-    const barTexts = sp.bars.map((bar) => {
-      const pulses = bar.pulses.map(pulseText);
-      const body = pulses.map((t, i) => (i === 0 ? t : ':' + t)).join(' ');
+    const barTexts = sp.bars.map((bar, b) => {
+      const body = replaceBars?.get(`${sp.voice}:${b}`) ?? barBodyText(bar);
       return [...bar.before, body, ...bar.after].filter((x) => x !== '').join(' ');
     });
     for (let i = 0; i < barTexts.length; i += BARS_PER_LINE) {

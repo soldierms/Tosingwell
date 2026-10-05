@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { parseSolfa } from '../../shared/solfa/parse';
 import { parseStaffText } from '../../shared/staff/parse';
-import { writeSolfa } from '../../shared/solfa/write';
+import { barBodyText, writeSolfa, writeSolfaParts } from '../../shared/solfa/write';
 import { writeStaffText } from '../../shared/staff/write';
 import { analyzeScore } from '../../shared/analysis/checks';
 import { summarize } from '../../shared/analysis/summary';
@@ -122,8 +122,14 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  // Save the work in progress automatically (on this device).
+  // Save the work in progress automatically (on this device) — but only once something has
+  // actually changed, so just opening a page (e.g. an example link) never replaces your saved work.
+  const changed = useRef(false);
   useEffect(() => {
+    if (!changed.current) {
+      if (text === START.text && format === START.format) return;
+      changed.current = true;
+    }
     const t = setTimeout(() => saveDraft(format, text), 800);
     return () => clearTimeout(t);
   }, [format, text]);
@@ -165,7 +171,28 @@ export function App() {
     replace(format, format === 'solfa' ? writeSolfa(next).text : writeStaffText(next).text);
     if (edit.type === 'delete') setSelected(undefined);
   };
-  const selectedBar = selected ? findEvent(result.score, selected)?.bar : undefined;
+  const selectedFound = selected ? findEvent(result.score, selected) : undefined;
+  const selectedBar = selectedFound?.bar;
+  const selectedBarText = useMemo(() => {
+    if (!selectedFound) return '';
+    const sp = writeSolfaParts(result.score).parts.find((p) => p.voice === selectedFound.part.id);
+    const bar = sp?.bars[selectedFound.bar];
+    return bar ? barBodyText(bar) : '';
+  }, [result.score, selectedFound?.part.id, selectedFound?.bar]);
+
+  // A whole bar typed in sol-fa: rebuild the score with that bar replaced.
+  const onBarEdit = (newText: string): string | undefined => {
+    if (!selectedFound) return;
+    const voice = selectedFound.part.id;
+    const b = selectedFound.bar;
+    const full = writeSolfa(result.score, new Map([[`${voice}:${b}`, newText.replace(/\|/g, ' ').trim()]])).text;
+    const check = parseSolfa(full);
+    const problems = check.flags.filter((f) => f.level === 'error' && f.part === voice && f.measure === b);
+    if (problems.length) return `Not applied: ${problems.map((f) => f.message.replace(/^.*?bar \d+: /, '')).join(' ')}`;
+    replace(format, format === 'solfa' ? full : writeStaffText(check).text);
+    const len = analyzeScore(check).find((f) => f.code === 'bar-length' && f.part === voice && f.measure === b);
+    return len ? `Applied, but: ${len.message.replace(/^.*?bar \d+: /, '')}` : 'Applied. The staff notation now matches.';
+  };
   // Beside the photo on a wide screen, the music gets the remaining width.
   const musicWidth = photoPages.length && width >= 1000 ? Math.floor(width * 0.6) - 16 : width - 2;
   const highlight = useMemo(() => (selected ? new Set([...follow.ids, selected]) : follow.ids), [follow.ids, selected]);
@@ -277,7 +304,17 @@ export function App() {
           <pre>{convertedText}</pre>
         </section>
       </main>
-      {selected && <NoteEditor score={result.score} id={selected} onEdit={onEdit} onClose={() => setSelected(undefined)} />}
+      {selected && (
+        <NoteEditor
+          key={selected}
+          score={result.score}
+          id={selected}
+          onEdit={onEdit}
+          barText={selectedBarText}
+          onBarEdit={onBarEdit}
+          onClose={() => setSelected(undefined)}
+        />
+      )}
       {printing && (
         <Suspense fallback={<p className="notice">Opening the print window…</p>}>
           <PrintDialog score={result.score} notation={view} tenorClef={tenorClef} mode={printing} onClose={closePrint} />

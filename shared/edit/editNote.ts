@@ -5,7 +5,22 @@
 import type { Frac } from '../model/fraction';
 import type { Pitch, Score, VoiceId } from '../model/types';
 import { keyAt, eventStarts } from '../model/score';
-import { keyAlter, STEPS } from '../convert/pitch';
+import { defaultDohOctave, keyAlter, solfaToPitch, STEPS } from '../convert/pitch';
+import { parsePulse } from '../solfa/parse';
+
+/** Sol-fa for one note ("d'", "t,", "fe", "m+d") → its pitches in this key, or an error message. */
+export function solfaNotePitches(text: string, key: Parameters<typeof keyAlter>[1], dohOctave: number, voice: VoiceId): Pitch[] | string {
+  const t = text.trim();
+  if (!t) return 'Type a syllable, e.g. d  r  m  t,  d\'';
+  const r = parsePulse(t);
+  const item = r.items[0];
+  if (r.errors.length || r.items.length !== 1 || item.kind !== 'note' || !item.syllable) {
+    return `“${t}” is not one sol-fa note. Use d r m f s l t (or de ra me fe se le ta), with ' for higher and , for lower.`;
+  }
+  const heads = [{ syllable: item.syllable, octave: item.octave ?? 0 }, ...(item.chord ?? [])];
+  const pitches = heads.map((h) => solfaToPitch(h.syllable, h.octave, key, dohOctave, voice));
+  return pitches.every(Boolean) ? (pitches as Pitch[]) : `“${t}” could not be turned into a note.`;
+}
 
 export type NoteEdit =
   | { type: 'step'; delta: 1 | -1 } // move up/down one letter (to the note that's in the key)
@@ -15,7 +30,8 @@ export type NoteEdit =
   | { type: 'kind'; kind: 'note' | 'rest' }
   | { type: 'tie' }
   | { type: 'confirm' }
-  | { type: 'delete' };
+  | { type: 'delete' }
+  | { type: 'solfa'; text: string }; // type the note in sol-fa: "d'", "t,", "fe", "m+d" (two notes)
 
 /** A typical note for each voice, used when turning a rest into a note. */
 const DEFAULT_PITCH: Record<VoiceId, Pitch> = {
@@ -81,6 +97,13 @@ export function editNote(score: Score, id: string, edit: NoteEdit): Score {
       break;
     case 'confirm':
       break;
+    case 'solfa': {
+      const pitches = solfaNotePitches(edit.text, key, copy.dohOctave ?? defaultDohOctave(key), part.id);
+      if (typeof pitches === 'string') return score; // the editor shows the message instead
+      ev.kind = 'note';
+      ev.pitches = pitches;
+      break;
+    }
     case 'delete':
       events.splice(index, 1);
       return copy;

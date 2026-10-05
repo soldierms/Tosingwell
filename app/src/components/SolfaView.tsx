@@ -84,6 +84,10 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight, p
               {/* Bar line at the end of the bar */}
               <BarLine x={x + w} y1={firstRowTop} y2={lastRowBottom} rowMids={rowMids} kind={m.repeatEnd ? 'repeatEnd' : m.finalBar || b === score.measures.length - 1 ? 'final' : m.doubleBar ? 'double' : 'single'} />
               {rows.map(({ sp, rowTop }) => {
+                const firstId = score.parts.find((p) => p.id === sp.voice)?.measures[b]?.events.find((e) => !e.grace)?.id;
+                return firstId ? <rect key={`hit-${sp.voice}`} className="bar-hit" x={x + 2} y={rowTop} width={w - 4} height={ROW} fill="transparent" data-note-id={firstId} /> : null;
+              })}
+              {rows.map(({ sp, rowTop }) => {
                 const bar = sp.bars[b];
                 if (!bar) return null;
                 let px = x + CHAR * 0.8 + (m.repeatStart ? REPEAT_PAD : 0);

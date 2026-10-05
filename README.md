@@ -68,7 +68,9 @@ Photo reading sends the picture to an AI that can see images. You need **one** A
 If both keys are set, Gemini is used unless `.env` has `READ_PROVIDER=claude`.
 
 Then use **Read a photo of a score**: take or choose a photo, press **Read this page**, and check the result
-beside the photo. Click any note to fix it. Uncertain notes are orange and problem bars are red.
+beside the photo. Click any note (or any empty spot in a bar) to fix it: use the buttons, type the note in
+sol-fa (e.g. `d'`, `t,`, `fe`), or retype the whole bar in sol-fa (e.g. `s :s :- ! l :- :-`) — the staff
+notation follows at once. Uncertain notes are orange and problem bars are red.
 
 To measure how accurately photos are read: `npm run test:vision` (uses your key; free with Gemini's free
 tier). Compare readers with `npm run test:vision -- --provider claude` or `--provider gemini`.

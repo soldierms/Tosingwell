@@ -300,3 +300,10 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
   .filebar button { flex: 1 1 auto; }
 }
 @media print { .topbar, .notice { display: none !important; } }
+
+/* Sol-fa editing in the note editor */
+.solfa-input { font-family: 'DejaVu Sans Mono', Menlo, Consolas, monospace; font-size: 15px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; width: 9em; }
+.solfa-input.wide { width: min(28em, 70vw); }
+.bar-edit { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.solfa-svg .bar-hit { cursor: pointer; }
+.solfa-svg .bar-hit:hover { fill: rgba(47, 93, 80, 0.06); }
