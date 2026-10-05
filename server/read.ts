@@ -35,13 +35,17 @@ Staff notation
 
 Tonic Sol-fa
 - Copy each bar for each part into "solfa" exactly as printed, typed like this: syllables d r m f s l t; chromatic de ra ri me fe se le li ta; ":" between beats; "." for half beats; "," for quarter beats; "-" to hold; a space for a rest; octave marks as ' (up) and , (down) written straight after the syllable (a subscript 1 is ","; a superscript 1 is "'"). Two notes sung together: "m+d". A bridge note at a key change is written "s/d" (old syllable/new syllable) with "key:NEW" in directives.
+- The medium-accent mark in the middle of a bar (in compound time such as 6/8, often handwritten as "/" or a short bar) separates pulses: write it as "!" ("d :r :m ! f :s :l").
+- Octave marks are often small or faint (a comma or subscript below, a tick or superscript above). Look for them on every note, especially in the tenor and bass and in the lowest and highest notes of the melody; a missing mark changes the note by a whole octave.
+- An empty pulse (a rest) is written as nothing between two ":" marks; keep the number of pulses in each bar exactly as printed.
 - Do not include bar lines in "solfa"; give the bar's lyric words in "solfaLyrics" (syllables joined with "-" inside a word, as printed). Leave events empty.
 - key: the doh as printed ("Doh is G", "Key G" → "G"; give a minor key as e.g. "E minor" if the page says lah is E).
 
 Both notations
 - directives use these words: "segno", "coda", "tocoda", "fine", "D.C.", "D.C. al Fine", "D.C. al Coda", "D.S.", "D.S. al Fine", "D.S. al Coda", "ending:1", "ending:2", "/ending" (the bar where an ending bracket closes, if it is not closed by a repeat sign), "rit", "accel", "a tempo", "key:G" (key change at this bar), "time:3/4", "tempo:Andante q=88".
 - repeatStart / repeatEnd for repeat signs at the start / end of a bar; endBarline "double" or "final" when printed.
-- title, composer (or arranger/source as printed), key (e.g. "G", "Eb", "E minor"), time (e.g. "4/4"), tempo (words and/or "q=90"): null when not printed.`;
+- title, composer (or arranger/source as printed), key (e.g. "G", "Eb", "E minor"), tempo (words and/or "q=90"): null when not printed.
+- time (e.g. "4/4"): as printed. Sol-fa scores often print none: then work it out from the pulses per bar and the accent marks (two groups of three pulses = "6/8"; three pulses = "3/4"; four = "4/4"), and add a question saying it was worked out.`;
 
 export interface ReadResult {
   reading: ScoreReading;

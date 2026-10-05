@@ -218,18 +218,48 @@ export function parsePulse(raw: string): PulseResult {
 }
 
 /** Split the text of one bar into pulses at ":" and "!" (not inside [] or {}). */
+/**
+ * Split the text of one bar into pulses at ":" and "!" (not inside [] or {}).
+ * A "/" is also a pulse mark (the medium accent in compound time, e.g. 6/8
+ * "d :r :m / f :s :l") — except in a bridge note, where it sits tight between
+ * two syllables ("s/d").
+ */
 export function splitPulses(barText: string): string[] {
   const out: string[] = [];
   let cur = '';
   let depth = 0;
-  for (const ch of barText) {
+  // A "/" with nothing after it (just before the bar line) is not an extra pulse.
+  const text = barText.replace(/\/\s*$/, '');
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     if (ch === '[' || ch === '{') depth++;
     if (ch === ']' || ch === '}') depth = Math.max(0, depth - 1);
-    if (depth === 0 && (ch === ':' || ch === '!')) { out.push(cur); cur = ''; }
+    const bridge = ch === '/' && /[a-z'’,₁₂₃¹²³]/.test(text[i - 1] ?? '') && /[drmfslt]/.test(text[i + 1] ?? '');
+    if (depth === 0 && (ch === ':' || ch === '!' || (ch === '/' && !bridge))) { out.push(cur); cur = ''; }
     else cur += ch;
   }
   out.push(cur);
   return out;
+}
+
+const TIME_FOR_PULSES: Record<number, string> = { 2: '2/4', 3: '3/4', 4: '4/4', 6: '6/8', 9: '9/8', 12: '12/8' };
+
+/** Most common number of pulses per bar (ignoring a short first bar), to guess a missing time signature. */
+export function guessTime(partLines: string[][]): string | undefined {
+  const counts = new Map<number, number>();
+  for (const lines of partLines) {
+    let first = true;
+    for (const line of lines) {
+      for (const bar of splitBars(line).bars) {
+        if (first) { first = false; continue; }
+        if (!bar.text.trim()) continue;
+        const n = splitPulses(bar.text).length;
+        counts.set(n, (counts.get(n) ?? 0) + 1);
+      }
+    }
+  }
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  return best ? TIME_FOR_PULSES[best[0]] : undefined;
 }
 
 // ---------- Whole document ----------
@@ -262,7 +292,16 @@ export function parseSolfa(text: string): Score {
     }
   });
 
-  const header = buildHeader(parseHeaderFields(headerLines), flags);
+  const fields = parseHeaderFields(headerLines);
+  if (!fields.time) {
+    // No time signature written: work it out from the bars, and say so.
+    const guess = guessTime([...partLines.values()]);
+    if (guess) {
+      fields.time = guess;
+      flags.push({ level: 'warning', code: 'header', message: `No time signature was given, so it was worked out from the bars: ${guess}. Add a "Time:" line if that is wrong.` });
+    }
+  }
+  const header = buildHeader(fields, flags);
   if (partLines.size === 0) {
     flags.push({ level: 'error', code: 'no-parts', message: 'No voice parts found. Start each line of music with S:, A:, T: or B:.' });
   }

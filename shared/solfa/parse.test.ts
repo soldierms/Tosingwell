@@ -143,3 +143,28 @@ describe('bar lines', () => {
     expect(bars(s)).toEqual(['C4:1/4 D4:1/4', 'r:1/2', 'E4:1/4 F4:1/4']);
   });
 });
+
+describe('compound time written with "/" and no time signature', () => {
+  it('treats "/" as a pulse mark but keeps bridge notes', () => {
+    const s = parseSolfa('Key: C\nTime: 6/8\nS: | d :r :m / f :s :l | s :- :- / - :- :- |');
+    expect(errors(s)).toEqual([]);
+    expect(bars(s)[0]).toBe('C4:1/8 D4:1/8 E4:1/8 F4:1/8 G4:1/8 A4:1/8');
+    const b = parseSolfa('Key: C\nTime: 2/4\nS: | d :[key:G]s/d | r :- |');
+    expect(b.flags.filter((f) => f.code === 'bridge')).toEqual([]);
+    expect(bars(b)[0]).toBe('C4:1/4 G4:1/4');
+  });
+  it('ignores a stray "/" just before the bar line', () => {
+    const s = parseSolfa('Key: C\nTime: 3/4\nS: | d :r :m / | f :- :- |');
+    expect(bars(s)[0]).toBe('C4:1/4 D4:1/4 E4:1/4');
+  });
+  it('works out 6/8 when no time signature is given, and says so', () => {
+    const s = parseSolfa('Key: Bb\nS: | s :s :- / l :- :- | t :t :- / d\' :s :- |\nA: | m :m :- / f :- :- | s :s :- / m :m :- |');
+    expect(s.measures[0].time).toEqual({ beats: 6, beatType: 8 });
+    expect(s.flags.some((f) => f.message.includes('worked out from the bars: 6/8'))).toBe(true);
+    expect(s.flags.filter((f) => f.level === 'error')).toEqual([]);
+  });
+  it('works out 3/4 too', () => {
+    const s = parseSolfa('Key: C\nS: | d :r :m | f :s :l | t :- :- |');
+    expect(s.measures[0].time).toEqual({ beats: 3, beatType: 4 });
+  });
+});
