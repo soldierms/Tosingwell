@@ -12,6 +12,13 @@ import { SummaryPanel } from './components/SummaryPanel';
 import { FlagsPanel } from './components/FlagsPanel';
 import { PlayerPanel, type FollowState } from './components/PlayerPanel';
 import { PrintDialog } from './components/PrintDialog';
+import { PhotoPanel, type ReadResponse } from './components/PhotoPanel';
+import { PhotoView, type PhotoPage } from './components/PhotoView';
+import { NoteEditor } from './components/NoteEditor';
+import { readingToText, withoutHeader } from '../../shared/vision/toText';
+import { editNote, findEvent, type NoteEdit } from '../../shared/edit/editNote';
+import type { Flag } from '../../shared/model/types';
+import type { PreparedImage } from './vision/prepareImage';
 
 type Format = 'solfa' | 'staff';
 type View = 'staff' | 'solfa' | 'both';
@@ -28,10 +35,18 @@ function useWidth() {
   return [ref, width] as const;
 }
 
+// Optional address settings, e.g. ?example=2&view=solfa (used for tests and sharing).
+const params = new URLSearchParams(location.search);
+const START = EXAMPLES[Number(params.get('example') ?? 0)] ?? EXAMPLES[0];
+const START_VIEW = (['staff', 'solfa', 'both'].includes(params.get('view') ?? '') ? params.get('view') : 'both') as View;
+
 export function App() {
-  const [format, setFormat] = useState<Format>(EXAMPLES[0].format);
-  const [text, setText] = useState(EXAMPLES[0].text);
-  const [view, setView] = useState<View>('both');
+  const [format, setFormat] = useState<Format>(START.format);
+  const [text, setText] = useState(START.text);
+  const [view, setView] = useState<View>(START_VIEW);
+  const [photoPages, setPhotoPages] = useState<PhotoPage[]>([]);
+  const [readingNotes, setReadingNotes] = useState<Flag[]>([]);
+  const [selected, setSelected] = useState<string>();
   const [tenorClef, setTenorClef] = useState<'bass' | 'treble8vb'>('bass');
   const [converted, setConverted] = useState<Format>('staff');
   const [viewRef, width] = useWidth();
@@ -56,18 +71,52 @@ export function App() {
     const checks = analyzeScore(score);
     const solfa = writeSolfa(score);
     const staff = writeStaffText(score);
-    const flags = [...score.flags, ...checks, ...solfa.flags, ...staff.flags];
+    const flags = [...readingNotes, ...score.flags, ...checks, ...solfa.flags, ...staff.flags];
     const flaggedBars = new Set(flags.filter((f) => f.level === 'error' && f.measure !== undefined).map((f) => f.measure!));
     return { score, flags, flaggedBars, solfaText: solfa.text, staffText: staff.text, summary: summarize(score, flags) };
-  }, [deferredText, format]);
+  }, [deferredText, format, readingNotes]);
 
   const loadExample = (i: number) => {
+    setPhotoPages([]);
+    setReadingNotes([]);
+    setSelected(undefined);
     setFormat(EXAMPLES[i].format);
     setText(EXAMPLES[i].text);
     setConverted(EXAMPLES[i].format === 'solfa' ? 'staff' : 'solfa');
   };
 
   const convertedText = converted === 'solfa' ? result.solfaText : result.staffText;
+
+  // A photo was read: put the reading into the editor (or add it as the next page).
+  const onRead = (res: ReadResponse, image: PreparedImage, mode: 'new' | 'append') => {
+    const conv = readingToText(res.reading);
+    const regions = res.reading.parts[0]?.bars.map((b) => b.region) ?? [];
+    if (mode === 'append' && conv.format === format) {
+      const firstBar = result.score.measures.length;
+      setText((t) => `${t.trimEnd()}\n${withoutHeader(conv.text)}`);
+      setPhotoPages((p) => [...p, { url: image.url, regions, firstBar }]);
+      setReadingNotes((n) => [...n, ...conv.notes.map((f) => ({ ...f, measure: f.measure === undefined ? undefined : f.measure + firstBar }))]);
+    } else {
+      setFormat(conv.format);
+      setText(conv.text);
+      setConverted(conv.format === 'solfa' ? 'staff' : 'solfa');
+      setPhotoPages([{ url: image.url, regions, firstBar: 0 }]);
+      setReadingNotes(conv.notes);
+    }
+    setSelected(undefined);
+  };
+
+  // A fix from the note editor: change the score, then write it back as text.
+  const onEdit = (edit: NoteEdit) => {
+    if (!selected) return;
+    const next = editNote(result.score, selected, edit);
+    setText(format === 'solfa' ? writeSolfa(next).text : writeStaffText(next).text);
+    if (edit.type === 'delete') setSelected(undefined);
+  };
+  const selectedBar = selected ? findEvent(result.score, selected)?.bar : undefined;
+  // Beside the photo on a wide screen, the music gets the remaining width.
+  const musicWidth = photoPages.length && width >= 1000 ? Math.floor(width * 0.6) - 16 : width - 2;
+  const highlight = useMemo(() => (selected ? new Set([...follow.ids, selected]) : follow.ids), [follow.ids, selected]);
 
   return (
     <div className="app">
@@ -100,6 +149,7 @@ export function App() {
 
         <SummaryPanel summary={result.summary} />
         <FlagsPanel flags={result.flags} />
+        <PhotoPanel canAppend={photoPages.length > 0} onRead={onRead} />
         <PlayerPanel score={result.score} errorCount={result.summary.counts.error} onFollow={onFollow} />
 
         <section className="card score" ref={viewRef}>
@@ -122,14 +172,19 @@ export function App() {
             <button onClick={() => setPrinting('print')}>🖨 Print</button>
             <button onClick={() => setPrinting('pdf')}>⬇ Export PDF</button>
           </div>
+          <div className={photoPages.length ? 'review' : undefined}>
+          {photoPages.length > 0 && <PhotoView pages={photoPages} bar={selectedBar} />}
+          <div className="review-music">
           <h2 className="score-title">{result.score.meta.title}</h2>
           {result.score.meta.composer && <p className="composer">{result.score.meta.composer}</p>}
           {(view === 'staff' || view === 'both') && (
-            <StaffView score={result.score} width={width - 2} tenorClef={tenorClef} flaggedBars={result.flaggedBars} highlight={follow.ids} />
+            <StaffView score={result.score} width={musicWidth} tenorClef={tenorClef} flaggedBars={result.flaggedBars} highlight={highlight} onNoteClick={setSelected} />
           )}
           {(view === 'solfa' || view === 'both') && (
-            <SolfaView score={result.score} width={width - 2} flaggedBars={result.flaggedBars} highlight={follow.ids} />
+            <SolfaView score={result.score} width={musicWidth} flaggedBars={result.flaggedBars} highlight={highlight} onNoteClick={setSelected} />
           )}
+          </div>
+          </div>
         </section>
 
         <section className="card converted">
@@ -145,6 +200,7 @@ export function App() {
           <pre>{convertedText}</pre>
         </section>
       </main>
+      {selected && <NoteEditor score={result.score} id={selected} onEdit={onEdit} onClose={() => setSelected(undefined)} />}
       {printing && (
         <PrintDialog score={result.score} notation={view} tenorClef={tenorClef} mode={printing} onClose={closePrint} />
       )}

@@ -9,7 +9,8 @@ The owner is a beginner: explain changes in plain language, keep steps small, st
 
 ```bash
 npm install          # once
-npm run dev          # app at http://localhost:5180 (also on the phone via the Network address)
+npm run dev          # app at http://localhost:5180 + photo server on 127.0.0.1:5190 (Vite proxies /api)
+npm run test:vision  # photo-reading accuracy vs known answers — calls the paid API, not part of npm test
 npm test             # all unit + library tests (Vitest)
 npm run typecheck    # TypeScript check
 npm run build        # production build into dist/
@@ -119,6 +120,27 @@ How it works:
 - Staff spacing between staves is computed per line from how far notes/stems reach (`staffExtent`), so
   lyrics never collide with high tenor notes. Font waiting is capped at 3 s (`app/src/render/fonts.ts`).
 
+## Photo reading (Phase 4)
+
+- `server/` (Express, run with tsx): `GET /api/status`, `POST /api/read-score` {image base64, mediaType}.
+  Key from `.env` (`ANTHROPIC_API_KEY`, optional `READ_MODEL`); server binds 127.0.0.1 only.
+- `server/read.ts`: `claude-opus-5-5` by default, streaming, `output_config.effort: "high"`, structured output
+  (`json_schema` = `SCORE_READING_SCHEMA`), `fallbacks: "default"` + beta `server-side-fallback-2026-07-01`.
+  Handles refusal / max_tokens / typed API errors; returns usage and cost ($4/$20 Opus 5.5, $2/$10 Sonnet 5.5 per MTok).
+- Claude reports what is PRINTED (written pitch + printed accidental + length; or sol-fa text per bar); the app
+  applies key signatures/accidentals (`shared/vision/toText.ts` → staff/sol-fa text → normal parsers).
+  Unreadable bars become empty bars with confidence 0 (never invented). Reading notes (questions, photo
+  problems, bar problems) are kept in App state and shown with the checks.
+- Client: `prepareImage` (EXIF orientation, ≤2576 px long edge, JPEG, quality warnings); `PhotoPanel`;
+  review = `PhotoView` (bar region boxed) beside the music + `NoteEditor` (`shared/edit/editNote.ts`) — edits
+  change the Score and are written back to the text in the current format (comments in the text are lost).
+- "Add as the next page" appends a reading (header removed) to the current text.
+- Accuracy test images in `tests/vision/` are clean renders of our fixtures (best case). Add real photos with a
+  typed answer `tests/vision/<name>.expected.<staff|solfa>.txt` to measure real-world accuracy.
+- Audiveris (dedicated OMR): not added. Pros: built for printed staff notation, deterministic, MusicXML output.
+  Cons: Java install + server only, weak on phone photos, no sol-fa, AGPL, merging two readings. Decide only after
+  `npm run test:vision` on real photos shows staff accuracy is not good enough.
+
 ## Folder map
 
 - `shared/model` — types, fractions, score helpers
@@ -129,6 +151,7 @@ How it works:
 - `shared/playback` — play order (repeat expansion) and timed schedule · `app/src/audio` — Tone.js player
 - `app/src` — React UI; `app/src/render/staffRenderer.ts` draws staff notation with VexFlow
 - `shared/print` — page sizes and pagination · `app/src/print` — builds printable pages
+- `shared/vision` — reading schema + reading→text · `shared/edit` — note edits · `server/` — API-key holder
 - `tests/` — library tests + fixtures (each score typed in both notations)
 
 ## Status
@@ -136,4 +159,6 @@ How it works:
 - Phase 1 (model, sol-fa parser, staff display, two-way conversion, checks): **done**.
 - Phase 2 (playback per part / all parts, play order, follow-along, speed, loop, count-in): **done**.
 - Phase 3 (printing and PDF export of both notations): **done**.
-- Next: Phase 4 photo upload and reading (Claude vision via a small server), review/edit screen.
+- Phase 4 (photo reading, confidence flags, review/edit screen, vision test library): **done**; accuracy not yet
+  measured — needs the owner's API key, then `npm run test:vision`.
+- Next: Phase 5 save/open, MusicXML export, polish, mobile layout.

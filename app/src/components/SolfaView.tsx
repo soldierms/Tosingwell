@@ -18,6 +18,8 @@ interface Props {
   highlight?: Set<string>;
   /** Printing: no colours, no key line above (the page header has it). */
   plain?: boolean;
+  /** Called with a note's id when it is clicked. */
+  onNoteClick?: (id: string) => void;
 }
 
 const FONT = 17;
@@ -31,7 +33,7 @@ const REPEAT_PAD = 12; // room for repeat dots next to a bar line
 /** Text shown for a piece (without {marks}). */
 const shown = (p: SolfaPiece) => p.text.replace(/\{[^}]*\}/g, '');
 
-export function SolfaView({ score, width, flaggedBars, parts: only, highlight, plain }: Props) {
+export function SolfaView({ score, width, flaggedBars, parts: only, highlight, plain, onNoteClick }: Props) {
   const layout = useMemo(() => buildLayout(score, width, only), [score, width, only]);
   const events = useMemo(() => {
     const map = new Map<string, NoteEvent>();
@@ -139,7 +141,10 @@ export function SolfaView({ score, width, flaggedBars, parts: only, highlight, p
 
   const m0 = score.measures[0];
   return (
-    <div className="solfa-view">
+    <div className="solfa-view" onClick={(e) => {
+      const id = (e.target as Element).closest('[data-note-id]')?.getAttribute('data-note-id');
+      if (id && onNoteClick) onNoteClick(id);
+    }}>
       {m0 && !plain && (
         <p className="solfa-key">
           {keyLabel(m0.key)} · {m0.time.beats}/{m0.time.beatType}

@@ -13,10 +13,12 @@ interface Props {
   parts?: VoiceId[];
   /** Note ids to highlight while playing. */
   highlight?: Set<string>;
+  /** Called with a note's id when it is clicked. */
+  onNoteClick?: (id: string) => void;
 }
 
 
-export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlight }: Props) {
+export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlight, onNoteClick }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const elements = useRef(new Map<string, SVGElement>());
   const lit = useRef<SVGElement[]>([]);
@@ -56,7 +58,10 @@ export function StaffView({ score, width, tenorClef, flaggedBars, parts, highlig
   return (
     <div className="staff-view">
       {error && <p className="error">Could not draw the staff notation: {error}</p>}
-      <div ref={ref} />
+      <div ref={ref} onClick={(e) => {
+        const id = (e.target as Element).closest('[data-note-id]')?.getAttribute('data-note-id');
+        if (id && onNoteClick) onNoteClick(id);
+      }} />
     </div>
   );
 }
