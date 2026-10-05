@@ -5,6 +5,6 @@ Composer: Louis Bourgeois (melody)
 Key: G   Time: 4/4   Tempo: q=80
 S: | d :- :d :- | t, :- :l, :- | s, :- :d :- | r :- :m :- |]
 A: | s, :- :l, :- | s, :- :m, :- | r, :- :s, :- | l, :- :s, :- |]
-T: | m :- :m :- | r :- :d :- | t, :- :m :- | f :- :d :- |]
+T: | m, :- :m, :- | r, :- :d, :- | t,, :- :m, :- | f, :- :d, :- |]
 B: | d :- :l, :- | s, :- :l, :- | s, :- :d, :- | f, :- :d, :- |]
 S-lyrics: All peo-ple that on earth do dwell,

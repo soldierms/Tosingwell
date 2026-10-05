@@ -54,7 +54,9 @@ photo (Ph.4) ─┘          │               ├─ playback (Ph.2), print/PDF
   (`la` = lowered lah, `te` = lowered te, as requested by the owner).
 - Octaves: `'` / `¹²` higher, `,` / `₁₂` lower. Unmarked doh is in octave 4 for keys C–G, octave 3 for
   A and B (override with header `Doh: A4`).
-- **Tenor and bass sol-fa are written an octave above the sounding pitch** (`SOLFA_OCTAVE_SHIFT`).
+- **Bass sol-fa is written an octave above the sounding pitch; tenor sol-fa is at its real pitch** (`SOLFA_OCTAVE_SHIFT`;
+  confirmed by the owner on a real B♭ score, 2026-10-05). Unmarked doh: octave 4 for keys C–G, octave 3 for A and B
+  (B♭ score: soprano plain s = F4).
 - Sol-fa time: `|` bar, `:` (or `!`) pulse, `.` half pulse, `,` quarter pulse, `.,` = 3/4 then 1/4,
   two dots = triplet, `-` hold (across a bar = tie), blank = rest. One pulse = the time signature's
   bottom number (6/8 has six eighth-note pulses).

@@ -68,9 +68,13 @@ describe('sol-fa ↔ pitch (movable doh)', () => {
     expect(p('si', 0, key('C'))).toBe('G#4');
     expect(p('te', 0, key('C'))).toBe('Bb4');
   });
-  it('writes tenor and bass an octave higher than they sound', () => {
-    expect(p('d', 0, key('C'), 'T')).toBe('C3');
+  it('reads the tenor at its written pitch and the bass an octave lower', () => {
+    expect(p('d', 0, key('C'), 'T')).toBe('C4');
+    expect(p('d', -1, key('C'), 'T')).toBe('C3');
     expect(p('s', -1, key('C'), 'B')).toBe('G2');
+    // The owner's B♭ Kyrie: bass d, tenor d, alto m, soprano s = B♭2, B♭3, D4, F4.
+    const bb = key('Bb');
+    expect([p('d', 0, bb, 'B'), p('d', 0, bb, 'T'), p('m', 0, bb, 'A'), p('s', 0, bb, 'S')]).toEqual(['Bb2', 'Bb3', 'D4', 'F4']);
   });
   it('converts back from pitch to syllable', () => {
     const g = key('G');

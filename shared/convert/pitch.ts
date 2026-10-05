@@ -147,8 +147,12 @@ export const SYLLABLES: Record<string, [number, number]> = {
   ta: [6, -1], te: [6, -1], t: [6, 0],
 };
 
-/** Sol-fa for tenor and bass is written an octave higher than it sounds. */
-export const SOLFA_OCTAVE_SHIFT: Record<VoiceId, number> = { S: 0, A: 0, T: -1, B: -1 };
+/**
+ * Bass sol-fa is written an octave higher than it sounds; the tenor is written
+ * at its real pitch (confirmed by the owner on a real score, 2026-10-05: on the
+ * opening chord the tenor's plain d sounds an octave ABOVE the bass's plain d).
+ */
+export const SOLFA_OCTAVE_SHIFT: Record<VoiceId, number> = { S: 0, A: 0, T: 0, B: -1 };
 
 /**
  * Which octave "unmarked" doh is in. Rule used: doh is in octave 4 (middle C

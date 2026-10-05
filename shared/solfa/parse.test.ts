@@ -85,8 +85,8 @@ describe('parseSolfa', () => {
     expect(s.measures[0].number).toBe(0);
     expect(bars(s)[0]).toBe('D4:1/4');
   });
-  it('places tenor and bass an octave below the written sol-fa', () => {
-    const s = parseSolfa('Key: C\nTime: 2/4\nT: | m :s |\nB: | d :s, |');
+  it('reads the tenor at written pitch and the bass an octave below the written sol-fa', () => {
+    const s = parseSolfa('Key: C\nTime: 2/4\nT: | m, :s, |\nB: | d :s, |');
     expect(bars(s, 'T')).toEqual(['E3:1/4 G3:1/4']);
     expect(bars(s, 'B')).toEqual(['C3:1/4 G2:1/4']);
   });

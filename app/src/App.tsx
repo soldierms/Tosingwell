@@ -300,7 +300,7 @@ function FormatHelp({ format }: { format: Format }) {
         <ul>
           <li><code>|</code> bar line · <code>:</code> next beat · <code>.</code> half beat · <code>,</code> quarter beat · <code>-</code> hold · blank = rest</li>
           <li><code>d r m f s l t</code> · chromatic <code>de ra ri me fe se le li ta</code> (also <code>fi si te</code>)</li>
-          <li>Octaves: <code>d'</code> higher, <code>d,</code> lower (or <code>d₁</code>). Tenor and bass are written an octave above how they sound.</li>
+          <li>Octaves: <code>d'</code> higher, <code>d,</code> lower (or <code>d₁</code>). The bass is written an octave above how it sounds; the tenor at its real pitch.</li>
           <li><code>d.,r</code> = dotted rhythm · <code>d.r.m</code> = triplet · <code>m+d</code> = two notes together (divisi)</li>
           <li>Key change with a bridge note: <code>[key:D]s/d</code></li>
         </ul>
