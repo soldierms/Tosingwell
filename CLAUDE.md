@@ -141,6 +141,21 @@ How it works:
   Cons: Java install + server only, weak on phone photos, no sol-fa, AGPL, merging two readings. Decide only after
   `npm run test:vision` on real photos shows staff accuracy is not good enough.
 
+## Save, open, export, polish (Phase 5)
+
+- `app/src/storage/library.ts`: My scores + automatic draft in `localStorage` (try/catch everywhere; private
+  browsing just skips). Files: `<title>.solfa.txt` / `<title>.staff.txt` (format from the name, else guessed).
+  Opening MusicXML is not supported (export only). `?example=N` skips the draft.
+- Undo/redo: `replace()` in App pushes the previous {format, text} for whole-score changes (note edits,
+  readings, opened files, examples, "Edit this version"); typing uses the textarea's own undo. ⌘Z outside
+  text fields.
+- `shared/musicxml/export.ts`: MusicXML 4.0 partwise, one part per voice. Validated against the official XSD
+  (w3c/musicxml v4.0 schema + `xmllint --schema`) for both fixtures and a marks-heavy example; tests check
+  well-formedness and that every bar's durations add up.
+- Lazy loading: Tone.js (`audio/player`) on first Play, `PrintDialog` on first Print.
+- Phone: sticky top bar with jump links (#type #photo #play #score), larger touch targets, web app manifest +
+  icons in `app/public/` (Add to Home Screen; no offline service worker).
+
 ## Folder map
 
 - `shared/model` — types, fractions, score helpers
@@ -152,6 +167,7 @@ How it works:
 - `app/src` — React UI; `app/src/render/staffRenderer.ts` draws staff notation with VexFlow
 - `shared/print` — page sizes and pagination · `app/src/print` — builds printable pages
 - `shared/vision` — reading schema + reading→text · `shared/edit` — note edits · `server/` — API-key holder
+- `shared/musicxml` — MusicXML export · `app/src/storage` — My scores, draft, files
 - `tests/` — library tests + fixtures (each score typed in both notations)
 
 ## Status
@@ -161,4 +177,6 @@ How it works:
 - Phase 3 (printing and PDF export of both notations): **done**.
 - Phase 4 (photo reading, confidence flags, review/edit screen, vision test library): **done**; accuracy not yet
   measured — needs the owner's API key, then `npm run test:vision`.
-- Next: Phase 5 save/open, MusicXML export, polish, mobile layout.
+- Phase 5 (save/open, MusicXML export, undo, mobile layout, lazy loading, home-screen icon): **done**.
+- Ideas not built: MusicXML import, offline mode (service worker), more verses in the sol-fa view, voice-like
+  playback sound.

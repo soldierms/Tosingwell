@@ -20,7 +20,7 @@ A music application for reading, converting, playing and printing choral scores 
 | 2 | Playback (each part / all parts), repeats and endings, follow-along, summary | ✅ done |
 | 3 | Printing and PDF export | ✅ done |
 | 4 | Photo upload and reading, review/edit screen | ✅ done (needs your API key) |
-| 5 | Save/open, MusicXML export, mobile polish | next |
+| 5 | Save/open, MusicXML export, mobile polish | ✅ done |
 
 ## Try it
 
@@ -34,6 +34,14 @@ Pick an example from the **Example** menu, or type your own score. The "How to t
 text box explains the format. To listen: check the play order in the **Play** box, tick
 "I have checked this order", then press **Play**. Piano sounds are loaded from the internet the first time.
 To print or make a PDF, use **🖨 Print** or **⬇ Export PDF** above the score.
+
+**Saving:** your work is saved automatically in this browser. Use **💾 Save** to keep a score in
+**📚 My scores** (on this device), **⬇ Download** to keep a file you can back up or move to another device
+(open it again with **📂 Open file**), and **⬇ MusicXML** to open the score in MuseScore, Finale, Sibelius or
+Dorico. **↶ Undo / ↷ Redo** undo note fixes, photo readings and opened files.
+
+**On your phone:** open the Network address shown by `npm run dev` (same Wi-Fi), then use the browser's
+**Share → Add to Home Screen** (iPhone) or **⋮ → Add to Home screen** (Android) to get a Tosingwell icon.
 
 ## Reading photos (one-time setup)
 
@@ -68,7 +76,9 @@ To measure how accurately photos are read (uses the API, so it costs a little):
 | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | Build, test and TypeScript settings |
 | `app/index.html` | The web page |
 | `app/src/App.tsx` | Main screen: editor, summary, checks, score views, converted text |
-| `app/src/components/` | `StaffView`, `SolfaView`, `SummaryPanel`, `FlagsPanel`, `PlayerPanel` (play controls), `PrintDialog` (print / PDF window) |
+| `app/src/components/` | `StaffView`, `SolfaView`, `SummaryPanel`, `FlagsPanel`, `PlayerPanel` (play controls), `PrintDialog` (print / PDF window), `FileBar` (new/open/save/download/undo) |
+| `app/src/storage/library.ts` | My scores, automatic draft saving, file download/open |
+| `app/public/` | App icon and home-screen (web app) settings |
 | `app/src/print/buildPages.ts` | Builds the printed pages (header, music, page numbers) |
 | `app/src/render/fonts.ts` | Waits (briefly) for the music font before drawing |
 | `app/src/components/PhotoPanel.tsx` | Take/choose a photo, quality checks, send it to be read |
@@ -91,6 +101,7 @@ To measure how accurately photos are read (uses the API, so it costs a little):
 | `shared/print/` | Paper sizes and page breaking for printing |
 | `shared/vision/` | The JSON shape Claude fills in, and turning it into a score |
 | `shared/edit/` | Small note edits used by the review screen |
+| `shared/musicxml/` | MusicXML export (checked against the official MusicXML 4.0 schema) |
 | `tests/` | Test library and helpers |
 | `tests/fixtures/` | Known scores, each typed in both sol-fa and staff notation |
 | `tests/vision/` | Test images for photo reading (with their correct answers) |

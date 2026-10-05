@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Score, VoiceId } from '../../../shared/model/types';
 import { describePlayOrder, expandPlayOrder, type PlayStep } from '../../../shared/playback/expand';
 import { buildSchedule, tempoValue } from '../../../shared/playback/schedule';
-import { ScorePlayer } from '../audio/player';
+import type { ScorePlayer } from '../audio/player';
 
 export interface FollowState {
   /** Note/rest ids sounding right now. */
@@ -21,7 +21,14 @@ interface Props {
   onFollow: (f: FollowState) => void;
 }
 
-const player = new ScorePlayer();
+// The sound engine (Tone.js) is large, so it is only loaded the first time you press Play.
+let loaded: ScorePlayer | undefined;
+let loading: Promise<ScorePlayer> | undefined;
+const getPlayer = () =>
+  (loading ??= import('../audio/player').then((m) => {
+    loaded = new m.ScorePlayer();
+    return loaded;
+  }));
 const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
 export function PlayerPanel({ score, errorCount, onFollow }: Props) {
@@ -46,15 +53,15 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   useEffect(() => setConfirmed(false), [orderKey]);
   // Stop when the score changes.
   useEffect(() => {
-    player.stop();
+    loaded?.stop();
     setStatus('stopped');
     onFollow({ ids: new Set() });
   }, [score, onFollow]);
 
   useEffect(() => {
     for (const p of score.parts) {
-      player.setSolo(p.id, solo.has(p.id));
-      player.setMute(p.id, mute.has(p.id));
+      loaded?.setSolo(p.id, solo.has(p.id));
+      loaded?.setMute(p.id, mute.has(p.id));
     }
   }, [solo, mute, score.parts]);
 
@@ -72,14 +79,19 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
 
   const play = async () => {
     if (status === 'paused') {
-      player.resume();
+      loaded?.resume();
       setStatus('playing');
       return;
     }
     setStatus('loading');
     const order = loop ? loopSteps() : steps;
     const schedule = buildSchedule(score, order, { speed: speed / 100 });
+    const player = await getPlayer();
     const loadedSound = await player.load();
+    for (const p of score.parts) {
+      player.setSolo(p.id, solo.has(p.id));
+      player.setMute(p.id, mute.has(p.id));
+    }
     setSound(loadedSound === 'piano' ? 'Piano' : 'Simple synth (piano sounds could not be loaded — check the internet connection)');
     let lastKey = '';
     let lastBar = -1;
@@ -124,12 +136,12 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   };
 
   const pause = () => {
-    player.pause();
+    loaded?.pause();
     setStatus('paused');
   };
 
   const stop = () => {
-    player.stop();
+    loaded?.stop();
     setStatus('stopped');
     setPosition('');
     onFollow({ ids: new Set() });
@@ -149,7 +161,7 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   const canPlay = confirmed || loop;
 
   return (
-    <section className="card player">
+    <section className="card player" id="play">
       <h2>Play</h2>
 
       <div className="play-order">

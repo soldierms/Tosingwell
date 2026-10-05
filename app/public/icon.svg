@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2f5d50"/>
+  <g fill="#fff">
+    <rect x="300" y="110" width="22" height="230"/>
+    <ellipse cx="262" cy="350" rx="66" ry="48" transform="rotate(-20 262 350)"/>
+    <path d="M322 110c40 30 80 50 90 110-25-35-55-45-90-50z"/>
+  </g>
+  <text x="128" y="452" font-family="Menlo, monospace" font-size="72" font-weight="700" fill="#e3eee9">d r m</text>
+</svg>

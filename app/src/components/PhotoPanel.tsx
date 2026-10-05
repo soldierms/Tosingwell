@@ -80,7 +80,7 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
   const ready = status && status !== 'offline' && status.ready;
 
   return (
-    <section className="card photo">
+    <section className="card photo" id="photo">
       <h2>Read a photo of a score</h2>
 
       {status === 'offline' && (
