@@ -124,7 +124,7 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
               {canAppend && <button onClick={() => read('append')} disabled={busy || !ready}>Add as the next page</button>}
               <button onClick={() => setImage(undefined)} disabled={busy}>Cancel</button>
             </div>
-            {busy && <p className="position">Reading… {seconds}s (usually 1–3 minutes — Claude checks every note carefully)</p>}
+            {busy && <p className="position">Reading… {seconds}s (usually 1–3 minutes — every note is checked carefully)</p>}
           </div>
         </div>
       )}

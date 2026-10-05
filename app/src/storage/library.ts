@@ -70,6 +70,17 @@ export function downloadText(filename: string, text: string, type = 'text/plain'
 export const scoreFileName = (title: string, format: Format) => `${safeName(title)}.${format === 'solfa' ? 'solfa' : 'staff'}.txt`;
 export const musicXmlFileName = (title: string) => `${safeName(title)}.musicxml`;
 
+/** True if the part lines clearly look like this format (used to catch a wrong "Type in" choice). */
+export function looksLike(text: string): Format | undefined {
+  const parts = text.split('\n').filter((l) => /^\s*[SATB]\s*:/.test(l)).join(' ');
+  if (!parts.trim()) return undefined;
+  const staffNotes = (parts.match(/\b[A-G](#|##|b|bb|n)?\d[whqest]/g) ?? []).length;
+  const solfaNotes = (parts.match(/(^|[\s:!.|])(d|r|m|f|s|l|t|de|ra|me|fe|se|le|ta)['’,₁₂]*(?=[\s:!.|,]|$)/g) ?? []).length;
+  if (staffNotes > 3 && staffNotes > solfaNotes) return 'staff';
+  if (solfaNotes > 3 && solfaNotes > staffNotes * 2) return 'solfa';
+  return undefined;
+}
+
 /** Work out whether a score file is sol-fa or staff text. */
 export function detectFormat(filename: string, text: string): Format {
   if (/\.solfa\.txt$/i.test(filename)) return 'solfa';

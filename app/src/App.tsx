@@ -21,7 +21,7 @@ import { editNote, findEvent, type NoteEdit } from '../../shared/edit/editNote';
 import type { Flag } from '../../shared/model/types';
 import type { PreparedImage } from './vision/prepareImage';
 import { FileBar } from './components/FileBar';
-import { downloadText, loadDraft, musicXmlFileName, saveDraft, scoreFileName } from './storage/library';
+import { downloadText, loadDraft, looksLike, musicXmlFileName, saveDraft, scoreFileName } from './storage/library';
 import { exportMusicXml } from '../../shared/musicxml/export';
 
 type Format = 'solfa' | 'staff';
@@ -144,6 +144,25 @@ export function App() {
   };
   const loadExample = (i: number) => startFresh(EXAMPLES[i].format, EXAMPLES[i].text);
 
+  /**
+   * "Type in" changed: CONVERT the score to the other notation (it is the same music).
+   * If the text already is in the chosen notation, just switch how it is read.
+   */
+  const changeFormat = (next: Format) => {
+    if (next === format) return;
+    if (looksLike(text) === next) {
+      setFormat(next);
+      setNotice(`Now reading the text as ${next === 'solfa' ? 'Tonic Sol-fa' : 'staff notation'}.`);
+      return;
+    }
+    replace(next, next === 'solfa' ? result.solfaText : result.staffText);
+    setNotice(`Converted the score to ${next === 'solfa' ? 'Tonic Sol-fa' : 'staff notation (as text)'}. Undo brings the old text back.`);
+  };
+
+  // The text clearly does not match the "Type in" choice (e.g. sol-fa read as staff).
+  const mismatch = looksLike(deferredText);
+  const wrongFormat = mismatch && mismatch !== format ? mismatch : undefined;
+
   const convertedText = converted === 'solfa' ? result.solfaText : result.staffText;
 
   // A photo was read: put the reading into the editor (or add it as the next page).
@@ -234,7 +253,7 @@ export function App() {
           <div className="row">
             <label>
               Type in:{' '}
-              <select value={format} onChange={(e) => setFormat(e.target.value as Format)}>
+              <select value={format} onChange={(e) => changeFormat(e.target.value as Format)}>
                 <option value="solfa">Tonic Sol-fa</option>
                 <option value="staff">Staff notation (as text)</option>
               </select>
@@ -247,6 +266,15 @@ export function App() {
               </select>
             </label>
           </div>
+          {wrongFormat && (
+            <p className="warning-text">
+              ⚠️ This text looks like {wrongFormat === 'solfa' ? 'Tonic Sol-fa' : 'staff notation'}, but “Type in” is set to{' '}
+              {format === 'solfa' ? 'Tonic Sol-fa' : 'staff notation'}.{' '}
+              <button onClick={() => { setFormat(wrongFormat); setNotice(undefined); }}>
+                Read it as {wrongFormat === 'solfa' ? 'sol-fa' : 'staff notation'}
+              </button>
+            </p>
+          )}
           <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} rows={14} aria-label="Score text" />
           <FormatHelp format={format} />
         </section>
