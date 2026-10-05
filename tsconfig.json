@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "target": "ES2023",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -12,7 +16,17 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["app/src", "shared", "tests", "vite.config.ts", "vitest.config.ts"]
+  "include": [
+    "app/src",
+    "shared",
+    "tests",
+    "server",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }
