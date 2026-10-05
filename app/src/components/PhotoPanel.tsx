@@ -114,7 +114,10 @@ export function PhotoPanel({ canAppend, onRead }: Props) {
       markSeen(data.readingId);
       onRead(data, image, mode);
       const cost = data.usage.costUsd === 0 ? ' — no charge' : data.usage.costUsd !== null ? ` — cost about $${data.usage.costUsd.toFixed(2)}` : '';
-      setLast(`Read with ${data.model}${cost}. Now check it against the photo below: uncertain notes are orange, problem bars are red.`);
+      const backup = typeof status === 'object' && data.model && !data.model.startsWith(status.model)
+        ? ` The main model (${status.model}) was busy or out of free allowance, so a backup model read this page — it is less accurate; check it carefully.`
+        : '';
+      setLast(`Read with ${data.model}${cost}.${backup} Now check it against the photo below: uncertain notes are orange, problem bars are red.`);
       setImage(undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

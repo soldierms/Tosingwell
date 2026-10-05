@@ -137,3 +137,28 @@ describe('photo reading → score', () => {
     expect(page2).toContain('S: |');
   });
 });
+
+describe('spotting guessed readings', () => {
+  const same = (n: number) => Array.from({ length: n }, (_, i) => two('G4', 'A4', i + 1));
+  it('warns when most bars in a part are copies of each other', () => {
+    const r = readingToText(reading({ parts: [{ voice: 'S', clef: 'treble', bars: same(12) }] }));
+    expect(r.notes.some((n) => n.message.includes('exact copies'))).toBe(true);
+  });
+  it('does not warn about a normal varied part', () => {
+    const notes = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5'];
+    const bars = notes.map((n, i) => two(n, notes[(i + 3) % notes.length], i + 1, undefined, false));
+    bars.forEach((b, i) => (b.events[0].confidence = i % 3 ? 1 : 0.7));
+    const r = readingToText(reading({ parts: [{ voice: 'S', clef: 'treble', bars }] }));
+    expect(r.notes.filter((n) => /copies|completely sure/.test(n.message))).toEqual([]);
+  });
+  it('warns when every note on a page is claimed to be certain', () => {
+    const r = readingToText(OLD_100); // 4 parts × 4 bars, all confidence 1
+    const big = readingToText(reading({ parts: OLD_100.parts.map((p) => ({ ...p, bars: [...p.bars, ...p.bars, ...p.bars].map((b, i) => ({ ...b, number: i + 1 })) })) }));
+    expect(r.notes).toEqual([]); // too small a page to judge
+    expect(big.notes.some((n) => n.message.includes('completely sure'))).toBe(true);
+  });
+  it('keeps "E -" lyrics joined to the next syllable', () => {
+    const r = readingToText(reading({ parts: [{ voice: 'S', clef: 'treble', bars: [bar(1, [note('G4', 'half', { lyric: 'E -' }), note('A4', 'half', { lyric: 'wra' })])] }] }));
+    expect(r.text).toContain('S-lyrics: E- wra');
+  });
+});

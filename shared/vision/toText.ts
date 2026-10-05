@@ -100,7 +100,8 @@ function lyricLine(bars: ReadingBar[]): string | undefined {
       if (ev.kind === 'note' && ev.pitches.length && !tiedIn) {
         const l = ev.lyric?.trim();
         if (l) any = true;
-        toks.push(l ? l.replace(/\s+/g, '~') : '*');
+        // "E -" → "E-" (word continues); inner spaces become "~" so a syllable stays one token.
+        toks.push(l ? l.replace(/\s+-$/, '-').replace(/\s+/g, '~') : '*');
       }
       tiedIn = ev.kind === 'note' && ev.tie;
     }
@@ -153,6 +154,7 @@ export function readingToText(r: ScoreReading): ReadingResult {
     if (lyr) lines.push(`${part.voice}-lyrics: ${lyr}`);
   }
   if (!parts.length) note('error', 'No voice parts could be read from the photo.');
+  for (const n of suspicious(r)) note('warning', n);
   return { format, text: lines.join('\n') + '\n', notes };
 }
 
@@ -162,4 +164,36 @@ export function withoutHeader(text: string): string {
     .split('\n')
     .filter((l) => !/^\s*(Title|Composer|Arranger|Key|Time|Tempo|Doh)\s*:/i.test(l))
     .join('\n');
+}
+
+/**
+ * Signs that the reader guessed instead of reading: many identical bars in a part (a repeated
+ * pattern), or claiming to be completely certain about every note on a whole page.
+ */
+export function suspicious(r: ScoreReading): string[] {
+  const out: string[] = [];
+  for (const part of r.parts) {
+    if (part.bars.length < 8) continue;
+    const sig = (b: ReadingBar) =>
+      r.notation === 'solfa'
+        ? (b.solfa ?? '').replace(/\s+/g, '')
+        : b.events.map((e) => `${e.kind}${e.pitches.map((p) => `${p.step}${p.accidental ?? ''}${p.octave}`).join('+')}/${e.length}${e.dots}`).join(' ');
+    const sigs = part.bars.map(sig).filter((x) => x.replace(/[-:!.]/g, '') !== ''); // ignore all-rest / all-hold bars
+    if (sigs.length < 8) continue;
+    const counts = new Map<string, number>();
+    for (const x of sigs) counts.set(x, (counts.get(x) ?? 0) + 1);
+    const repeated = [...counts.values()].filter((c) => c > 1).reduce((a, c) => a + c, 0);
+    if (counts.size / sigs.length < 0.4 && repeated / sigs.length > 0.6) {
+      out.push(`${VOICE_NAMES[part.voice]}: ${repeated} of ${sigs.length} bars are exact copies of other bars. The reader may have repeated a pattern instead of reading each bar — check them carefully against the photo.`);
+    }
+  }
+  // Only judged on a full page (about 80+ notes, or 40+ bars of sol-fa) — a short excerpt can be easy.
+  const bars = r.parts.flatMap((p) => p.bars);
+  const events = bars.flatMap((b) => b.events);
+  const confs = [...bars.map((b) => b.confidence), ...events.map((e) => e.confidence)];
+  const bigEnough = events.length >= 80 || (r.notation === 'solfa' && bars.length >= 40);
+  if (bigEnough && confs.every((c) => c >= 0.99)) {
+    out.push('The reader said it was completely sure of every note on the page, which is unlikely. Mistakes will not show in orange — please check every bar against the photo.');
+  }
+  return out;
 }
