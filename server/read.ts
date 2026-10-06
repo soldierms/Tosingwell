@@ -38,6 +38,7 @@ Tonic Sol-fa
 - The medium-accent mark in the middle of a bar (in compound time such as 6/8, often handwritten as "/" or a short bar) separates pulses: write it as "!" ("d :r :m ! f :s :l").
 - Octave marks are often small or faint (a comma or subscript below, a tick or superscript above). Look for them on every note, especially in the tenor and bass and in the lowest and highest notes of the melody; a missing mark changes the note by a whole octave.
 - An empty pulse (a rest) is written as nothing between two ":" marks; keep the number of pulses in each bar exactly as printed.
+- Write "-" only where a dash is actually written on the page. Never turn a blank pulse into "-": a part that is silent (only ":" marks, or nothing, while other parts sing) is resting, e.g. " : : ! : : ". Copy each part's own line; never fill it from the line above or below.
 - Do not include bar lines in "solfa"; give the bar's lyric words in "solfaLyrics" (syllables joined with "-" inside a word, as printed). Leave events empty.
 - key: the doh as printed ("Doh is G", "Key G" → "G"; give a minor key as e.g. "E minor" if the page says lah is E).
 
