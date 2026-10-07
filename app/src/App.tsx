@@ -103,8 +103,14 @@ export function App() {
   // ?score=NAME opens a score file kept on this computer in app/public/_private/ (not in git:
   // private, copyrighted music), so one link shows the same checked score in any browser or phone.
   useEffect(() => {
-    const name = params.get('score');
-    if (!name || !/^[\w-]+$/.test(name)) return;
+    // Forgive a full stop or other punctuation copied along with the link (e.g. "?score=praise-him.").
+    const raw = params.get('score');
+    if (raw === null) return;
+    const name = raw.trim().replace(/[^\w-]+$/, '').replace(/^[^\w-]+/, '');
+    if (!/^[\w-]+$/.test(name)) {
+      setNotice(`The link asks for a score called “${raw}”, which is not a valid name. Check the address.`);
+      return;
+    }
     (async () => {
       for (const f of ['staff', 'solfa'] as const) {
         const r = await fetch(`/_private/${name}.${f}.txt`).catch(() => undefined);
