@@ -117,8 +117,8 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
     try {
       const add = async (img: File) => {
         pictures++;
-        const pieces = await splitPicture(img, halves);
-        for (const piece of pieces) out.push({ ...(await prepareImage(piece)), name: piece.name });
+        const { pieces, longEdge } = await splitPicture(img, halves);
+        for (const piece of pieces) out.push({ ...(await prepareImage(piece, longEdge)), name: piece.name });
       };
       for (const f of list) {
         if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {

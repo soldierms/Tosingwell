@@ -17,7 +17,8 @@ export interface PreparedImage {
 
 const MAX_EDGE = 2576;
 
-export async function prepareImage(file: File): Promise<PreparedImage> {
+/** `wholeLongEdge`: for a piece cut from a bigger picture, that picture's long edge (the size warning is about it). */
+export async function prepareImage(file: File, wholeLongEdge?: number): Promise<PreparedImage> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -36,7 +37,7 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  const warnings = checkQuality(ctx, width, height);
+  const warnings = checkQuality(ctx, width, height, wholeLongEdge);
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not prepare the image.'))), 'image/jpeg', 0.9),
   );
@@ -54,12 +55,12 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
  * picture with the same amount of detail, so smaller pieces mean bigger, clearer notes.
  * Returns the picture unchanged when there is nowhere safe to cut.
  */
-export async function splitPicture(file: File, halves: boolean): Promise<File[]> {
+export async function splitPicture(file: File, halves: boolean): Promise<{ pieces: File[]; longEdge?: number }> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    return [file]; // prepareImage gives the proper message
+    return { pieces: [file] }; // prepareImage gives the proper message
   }
   try {
     const sw = Math.min(600, bitmap.width);
@@ -75,7 +76,7 @@ export async function splitPicture(file: File, halves: boolean): Promise<File[]>
     const grey = new Uint8Array(sw * sh);
     for (let i = 0; i < grey.length; i++) grey[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
     const cuts = planCuts(grey, sw, sh, halves);
-    if (!cuts.length) return [file];
+    if (!cuts.length) return { pieces: [file] };
 
     const scale = bitmap.height / sh;
     const edges = [0, ...cuts.map((y) => Math.round(y * scale)), bitmap.height];
@@ -94,16 +95,16 @@ export async function splitPicture(file: File, halves: boolean): Promise<File[]>
       );
       out.push(new File([blob], `${base} — part ${i + 1} of ${edges.length - 1}.jpg`, { type: 'image/jpeg' }));
     }
-    return out;
+    return { pieces: out, longEdge: Math.max(bitmap.width, bitmap.height) };
   } finally {
     bitmap.close();
   }
 }
 
 /** Simple quality checks on a small grey copy of the picture. */
-function checkQuality(src: CanvasRenderingContext2D, w: number, h: number): string[] {
+function checkQuality(src: CanvasRenderingContext2D, w: number, h: number, wholeLongEdge?: number): string[] {
   const warnings: string[] = [];
-  if (Math.max(w, h) < 1200) warnings.push('The picture is small (low resolution). Move closer, or use the camera instead of a screenshot or thumbnail.');
+  if ((wholeLongEdge ?? Math.max(w, h)) < 1200) warnings.push('The picture is small (low resolution). Move closer, or use the camera instead of a screenshot or thumbnail.');
 
   const sw = 400;
   const sh = Math.max(1, Math.round((h / w) * sw));
