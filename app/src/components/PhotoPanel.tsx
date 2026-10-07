@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ScoreReading } from '../../../shared/vision/schema';
-import { prepareImage, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
+import { prepareImage, splitPicture, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
 
 export interface ReadResponse {
   reading: ScoreReading;
@@ -41,6 +41,8 @@ interface Props {
   incoming?: { files: File[]; at: number };
 }
 
+const HALVES_KEY = 'tosingwell.photo-halves';
+
 export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'gemini' | 'claude'; note?: string } | 'offline'>();
   /** Pages waiting to be read, in order. */
@@ -54,6 +56,14 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   const [error, setError] = useState<string>();
   const [last, setLast] = useState<string>();
   const [missed, setMissed] = useState<{ id: string; at: string; title: string | null }>();
+  /** Cut each page into halves before reading (more detail per note). Remembered on this device. */
+  const [halves, setHalves] = useState(() => {
+    try {
+      return localStorage.getItem(HALVES_KEY) !== 'no';
+    } catch {
+      return true;
+    }
+  });
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const stopRef = useRef(false);
@@ -103,18 +113,31 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
     setError(undefined);
     setLast(undefined);
     const out: (PreparedImage & { name: string })[] = [];
+    let pictures = 0;
     try {
+      const add = async (img: File) => {
+        pictures++;
+        const pieces = await splitPicture(img, halves);
+        for (const piece of pieces) out.push({ ...(await prepareImage(piece)), name: piece.name });
+      };
       for (const f of list) {
         if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
           setPreparing(`Opening ${f.name}…`);
           const { pdfToImages } = await import('../vision/pdfPages');
           const imgs = await pdfToImages(f, (d, t) => setPreparing(`Turning ${f.name} into pictures: page ${d} of ${t}…`));
-          for (const img of imgs) out.push({ ...(await prepareImage(img)), name: img.name });
+          for (const img of imgs) {
+            setPreparing(`Preparing ${img.name}…`);
+            await add(img);
+          }
         } else {
           setPreparing(`Preparing ${f.name}…`);
-          out.push({ ...(await prepareImage(f)), name: f.name });
+          await add(f);
         }
       }
+      if (out.length > pictures)
+        setLast(
+          `Cut ${pictures === 1 ? 'the picture' : `the ${pictures} pictures`} into ${out.length} parts between lines of music, so the reader sees every note bigger. They are read in order as one song.`,
+        );
       setPages(out);
       setDone(0);
     } catch (e) {
@@ -249,6 +272,21 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
         <button onClick={() => camera.current?.click()} disabled={busy}>📷 Take a photo</button>
         <button onClick={() => picker.current?.click()} disabled={busy}>🖼 Choose pictures or a PDF</button>
         <span className="muted small">You can pick several pages at once (in page order), a whole PDF, paste a picture (⌘V / Ctrl+V), or drag files onto the page.</span>
+        <label className="small">
+          <input
+            type="checkbox"
+            checked={halves}
+            onChange={(e) => {
+              setHalves(e.target.checked);
+              try {
+                localStorage.setItem(HALVES_KEY, e.target.checked ? 'yes' : 'no');
+              } catch {
+                /* private browsing: just not remembered */
+              }
+            }}
+          />{' '}
+          Cut each page in half for more detail (best for four-part music; each half counts as one reading)
+        </label>
         <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { choose(e.target.files); e.target.value = ''; }} />
         <input ref={picker} type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf" hidden onChange={(e) => { choose(e.target.files); e.target.value = ''; }} />
       </div>

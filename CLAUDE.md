@@ -147,6 +147,12 @@ How it works:
   lazy-loaded, worker created explicitly, `intent: 'print'` so rendering doesn't stall in background tabs) are read in
   order — first page 'new', rest 'append'. 429 "per minute" → waits 65 s and retries (≤3); other errors stop with
   "Carry on from page N". App.onRead uses a `latest` ref so back-to-back appends build on the newest text.
+- Cutting (`app/src/vision/split.ts` `planCuts`, browser side `splitPicture` in prepareImage.ts): readers see each
+  picture at a fixed detail (Gemini ≈ 1,100 tokens per image), so a tall picture (height/width > 1.6, e.g. two
+  screenshotted pages) is cut into pages, and with "Cut each page in half" (default on, `tosingwell.photo-halves`)
+  each page into halves. Cuts only in rows that are blank right across (or a dark page band), ignoring black
+  border columns; the longest strip near the planned cut wins; no clean strip → no cut (phone photos stay whole).
+  Applies to PDF pages too. Pieces are read in order as one song.
 - Test multi-page without spending readings: `private/test/mock-server.mts` + `private/test/vite.test.config.ts`
   (vite preview on :5182 proxying /api to the mock on :5195).
 - Sol-fa editing in the note editor: "Sol-fa for this note" (`solfaNotePitches` / edit type `solfa`) and

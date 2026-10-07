@@ -4,6 +4,7 @@
 // so you can retake a bad photo before paying for a reading.
 
 import { assessGrey } from './quality';
+import { planCuts } from './split';
 
 export interface PreparedImage {
   base64: string;
@@ -45,6 +46,58 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
     r.readAsDataURL(blob);
   });
   return { base64, mediaType: 'image/jpeg', url: URL.createObjectURL(blob), width, height, warnings };
+}
+
+/**
+ * Cuts a tall picture (several pages stacked) into pages, and each page into halves when
+ * `halves` is on, at blank strips between lines of music (see split.ts). Readers look at every
+ * picture with the same amount of detail, so smaller pieces mean bigger, clearer notes.
+ * Returns the picture unchanged when there is nowhere safe to cut.
+ */
+export async function splitPicture(file: File, halves: boolean): Promise<File[]> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  } catch {
+    return [file]; // prepareImage gives the proper message
+  }
+  try {
+    const sw = Math.min(600, bitmap.width);
+    const sh = Math.max(1, Math.round((bitmap.height / bitmap.width) * sw));
+    const c = document.createElement('canvas');
+    c.width = sw;
+    c.height = sh;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, sw, sh);
+    g.drawImage(bitmap, 0, 0, sw, sh);
+    const px = g.getImageData(0, 0, sw, sh).data;
+    const grey = new Uint8Array(sw * sh);
+    for (let i = 0; i < grey.length; i++) grey[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+    const cuts = planCuts(grey, sw, sh, halves);
+    if (!cuts.length) return [file];
+
+    const scale = bitmap.height / sh;
+    const edges = [0, ...cuts.map((y) => Math.round(y * scale)), bitmap.height];
+    const base = file.name.replace(/\.[^.]+$/, '');
+    const out: File[] = [];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const piece = document.createElement('canvas');
+      piece.width = bitmap.width;
+      piece.height = edges[i + 1] - edges[i];
+      const pc = piece.getContext('2d')!;
+      pc.fillStyle = '#fff';
+      pc.fillRect(0, 0, piece.width, piece.height);
+      pc.drawImage(bitmap, 0, -edges[i]);
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        piece.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not cut the picture.'))), 'image/jpeg', 0.92),
+      );
+      out.push(new File([blob], `${base} — part ${i + 1} of ${edges.length - 1}.jpg`, { type: 'image/jpeg' }));
+    }
+    return out;
+  } finally {
+    bitmap.close();
+  }
 }
 
 /** Simple quality checks on a small grey copy of the picture. */
