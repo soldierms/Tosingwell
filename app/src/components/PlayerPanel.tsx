@@ -31,6 +31,9 @@ const getPlayer = () =>
   }));
 const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
+const MIN_BPM = 20;
+const MAX_BPM = 240;
+
 export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   const [repeatsAfterJump, setRepeatsAfterJump] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -66,6 +69,9 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   }, [solo, mute, score.parts]);
 
   const tempo = tempoValue(score.measures[0]?.tempo);
+  // Tempo box: the same setting as Speed, shown as beats per minute (speed % of the score's tempo).
+  const bpm = Math.round((tempo.bpm * speed) / 100);
+  const setBpm = (v: number) => setSpeed((Math.min(MAX_BPM, Math.max(MIN_BPM, Math.round(v))) / tempo.bpm) * 100);
   const barNumbers = score.measures.map((m) => m.number);
   const minBar = Math.min(...barNumbers);
   const maxBar = Math.max(...barNumbers);
@@ -226,11 +232,27 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
 
       <div className="row">
         <label className="speed">
-          Speed {speed}%{' '}
-          <input type="range" min={25} max={150} step={5} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={status !== 'stopped'} />
+          Speed {Math.round(speed)}%{' '}
+          <input type="range" min={25} max={Math.max(150, Math.ceil(speed))} step={5} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={status !== 'stopped'} />
         </label>
+      </div>
+      <div className="row tempo">
+        <span>Tempo</span>
+        <button onClick={() => setBpm(bpm - 5)} disabled={status !== 'stopped'} aria-label="Slower">−</button>
+        <input
+          type="number"
+          min={MIN_BPM}
+          max={MAX_BPM}
+          value={bpm}
+          onChange={(e) => e.target.value && setBpm(Number(e.target.value))}
+          disabled={status !== 'stopped'}
+          aria-label="Tempo in beats per minute"
+        />
+        <button onClick={() => setBpm(bpm + 5)} disabled={status !== 'stopped'} aria-label="Faster">+</button>
+        <span>beats per minute</span>
+        {Math.round(speed) !== 100 && <button className="small" onClick={() => setSpeed(100)} disabled={status !== 'stopped'}>Back to {tempo.bpm}</button>}
         <span className="muted small">
-          ≈ {Math.round((tempo.bpm * speed) / 100)} beats per minute{tempo.guessed ? ' (no number in the score, so this is a guess)' : ''}
+          {tempo.guessed ? `The score gives no tempo number, so ${tempo.bpm} is a guess.` : `The score says ${tempo.bpm}.`} Type your own, or use − and +.
         </span>
       </div>
       <div className="row">

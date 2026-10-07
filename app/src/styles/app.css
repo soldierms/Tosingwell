@@ -319,3 +319,5 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
 .page-thumbs li img { width: 80px; height: 104px; object-fit: cover; background: #fff; }
 .page-thumbs li.done { border-color: var(--accent); }
 .page-thumbs li.now { border-color: var(--warning); }
+.tempo { align-items: center; }
+.tempo input[type="number"] { width: 4.5em; text-align: center; }
