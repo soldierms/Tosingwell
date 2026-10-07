@@ -197,11 +197,20 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
       <div className="parts">
         <div className="row">
           <span className="label">Play:</span>
-          <button className={solo.size === 0 && mute.size === 0 ? 'on' : ''} onClick={() => only('all')}>All parts</button>
+          <button className={solo.size === 0 && mute.size === 0 ? 'on' : ''} onClick={() => only('all')}>
+            {score.parts.length === 1 ? `All parts (only ${score.parts[0].name} is in this score)` : `All ${score.parts.length} parts`}
+          </button>
           {score.parts.map((p) => (
             <button key={p.id} className={solo.size === 1 && solo.has(p.id) ? 'on' : ''} onClick={() => only(p.id)}>{p.name} only</button>
           ))}
         </div>
+        {score.parts.length < 4 && (
+          <p className="warning-text small">
+            This score has only {score.parts.map((p) => p.name).join(', ')} ({score.measures.length} bars), so that is all that can play.
+            If your page has more voices, they are missing from the score — a photo reading may have missed them. Open a checked
+            copy from 📚 My scores, or type the missing parts in.
+          </p>
+        )}
         <table>
           <tbody>
             {score.parts.map((p) => (
