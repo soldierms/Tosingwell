@@ -159,6 +159,8 @@ How it works:
   "This bar" (`writeSolfa(score, replaceBars)` with key `"S:3"`, then re-parse; not applied if the bar has
   read errors, applied with a note if the beats don't add up). Converted back to staff text when the editor is
   in staff format. `.bar-hit` rects in SolfaView make rests/holds clickable.
+- `?score=NAME` opens `app/public/_private/NAME.staff.txt` (or `.solfa.txt`) — gitignored, local only — as a whole-score
+  change (Undo works), so one link shows the same checked score in any browser/phone on the Wi-Fi.
 - Autosave only starts after the first real change, so opening `?example=N` never replaces a saved draft.
   Test UI changes on another port (`vite preview --port 5182`): localStorage is per port, so the owner's
   draft on :5180 is never touched.

@@ -100,6 +100,25 @@ export function App() {
     setFormat(nextFormat);
     setText(nextText);
   };
+  // ?score=NAME opens a score file kept on this computer in app/public/_private/ (not in git:
+  // private, copyrighted music), so one link shows the same checked score in any browser or phone.
+  useEffect(() => {
+    const name = params.get('score');
+    if (!name || !/^[\w-]+$/.test(name)) return;
+    (async () => {
+      for (const f of ['staff', 'solfa'] as const) {
+        const r = await fetch(`/_private/${name}.${f}.txt`).catch(() => undefined);
+        const t = r?.ok ? await r.text() : '';
+        if (!t.includes('Title:')) continue; // a missing file comes back as the app page
+        replace(f, t);
+        setNotice(`Opened “${t.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? name}” from the link. Press 💾 Save to keep it in My scores.`);
+        return;
+      }
+      setNotice(`No score called “${name}” was found on this computer.`);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const undo = () => {
     const prev = undoStack[undoStack.length - 1];
     if (!prev) return;
