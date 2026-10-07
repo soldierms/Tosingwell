@@ -199,6 +199,13 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
               if (stopRef.current) break;
               continue;
             }
+            // Google busy (503): wait two minutes and try again by itself, up to 3 times.
+            if (st === 503 && attempt < 3) {
+              setLast(`Google's servers are busy (page ${i + 1}). Waiting 2 minutes, then trying again by itself (try ${attempt + 2} of 4)… You can leave this page open.`);
+              await sleepUntil(120_000);
+              if (stopRef.current) break;
+              continue;
+            }
             throw e;
           }
         }
@@ -219,7 +226,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(`Stopped at page ${i + 1} of ${pages.length}: ${msg}${i > 0 ? ` Pages 1–${i} are already in the app.` : ''} Press “Carry on” to continue from page ${i + 1}.`);
+      setError(`Stopped at page ${i + 1} of ${pages.length}: ${msg}${i > 0 ? ` Pages 1–${i} are already in the app.` : ''} ${i > 0 ? `Press “Carry on from page ${i + 1}” to continue.` : `Press “Read all ${pages.length} pages” to try again.`}`);
     } finally {
       setBusy(false);
       setWaitUntil(undefined);
@@ -324,7 +331,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
           {busy && (
             <p className="position">
               {waitUntil
-                ? `Waiting for the free limit to reset… ${Math.max(0, Math.ceil((waitUntil - now) / 1000))}s`
+                ? `Waiting before trying again… ${Math.max(0, Math.ceil((waitUntil - now) / 1000))}s`
                 : `Reading page ${done + 1} of ${pages.length}… ${seconds}s (each page usually takes 1–3 minutes)`}
             </p>
           )}
@@ -346,7 +353,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
               {canAppend && <button onClick={() => readAll(true, 0)} disabled={busy || !ready}>Add as the next page</button>}
               <button onClick={() => setPages([])} disabled={busy}>Cancel</button>
             </div>
-            {busy && <p className="position">{waitUntil ? `Waiting for the free limit to reset… ${Math.max(0, Math.ceil((waitUntil - now) / 1000))}s` : `Reading… ${seconds}s (usually 1–3 minutes — every note is checked carefully)`}</p>}
+            {busy && <p className="position">{waitUntil ? `Waiting before trying again… ${Math.max(0, Math.ceil((waitUntil - now) / 1000))}s` : `Reading… ${seconds}s (usually 1–3 minutes — every note is checked carefully)`}</p>}
           </div>
         </div>
       )}
