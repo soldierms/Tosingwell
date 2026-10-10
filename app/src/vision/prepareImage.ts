@@ -16,16 +16,18 @@ export interface PreparedImage {
 }
 
 const MAX_EDGE = 2576;
+/** Audiveris (on this computer) reads bigger pictures better and has no size cost. */
+export const MAX_EDGE_AUDIVERIS = 4000;
 
 /** `wholeLongEdge`: for a piece cut from a bigger picture, that picture's long edge (the size warning is about it). */
-export async function prepareImage(file: File, wholeLongEdge?: number): Promise<PreparedImage> {
+export async function prepareImage(file: File, wholeLongEdge?: number, maxEdge = MAX_EDGE): Promise<PreparedImage> {
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     throw new Error('This picture could not be opened. Please use a JPEG or PNG photo (on iPhone, set Camera → Formats → “Most Compatible”).');
   }
-  const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);
   const height = Math.round(bitmap.height * scale);
   const canvas = document.createElement('canvas');

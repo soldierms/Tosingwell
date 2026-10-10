@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ScoreReading } from '../../../shared/vision/schema';
-import { prepareImage, splitPicture, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
+import { MAX_EDGE_AUDIVERIS, prepareImage, splitPicture, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
 
 export interface ReadResponse {
   reading: ScoreReading;
@@ -44,7 +44,7 @@ interface Props {
 const HALVES_KEY = 'tosingwell.photo-halves';
 
 export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
-  const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'gemini' | 'claude'; note?: string } | 'offline'>();
+  const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'audiveris' | 'gemini' | 'claude'; note?: string } | 'offline'>();
   /** Pages waiting to be read, in order. */
   const [pages, setPages] = useState<(PreparedImage & { name: string })[]>([]);
   /** How many of `pages` have been read into the app. */
@@ -115,16 +115,19 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
     const out: (PreparedImage & { name: string })[] = [];
     let pictures = 0;
     try {
+      const audiveris = typeof status === 'object' && status.provider === 'audiveris';
+      const maxEdge = audiveris ? MAX_EDGE_AUDIVERIS : undefined;
       const add = async (img: File) => {
         pictures++;
-        const { pieces, longEdge } = await splitPicture(img, halves);
-        for (const piece of pieces) out.push({ ...(await prepareImage(piece, longEdge)), name: piece.name });
+        // Audiveris reads a whole page at once and gains nothing from halves.
+        const { pieces, longEdge } = await splitPicture(img, halves && !audiveris);
+        for (const piece of pieces) out.push({ ...(await prepareImage(piece, longEdge, maxEdge)), name: piece.name });
       };
       for (const f of list) {
         if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
           setPreparing(`Opening ${f.name}…`);
           const { pdfToImages } = await import('../vision/pdfPages');
-          const imgs = await pdfToImages(f, (d, t) => setPreparing(`Turning ${f.name} into pictures: page ${d} of ${t}…`));
+          const imgs = await pdfToImages(f, (d, t) => setPreparing(`Turning ${f.name} into pictures: page ${d} of ${t}…`), maxEdge);
           for (const img of imgs) {
             setPreparing(`Preparing ${img.name}…`);
             await add(img);
@@ -361,8 +364,12 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
       {last && <p className="ok small">{last}</p>}
       {ready && typeof status === 'object' && (
         <p className="muted small">
-          Reader: {status.provider === 'gemini' ? 'Google Gemini' : 'Anthropic Claude'} ({status.model}).{' '}
-          {status.provider === 'gemini' ? `${status.note} Each page counts as one reading of your free daily allowance.` : 'Each page costs a few cents to about a dollar, billed to your Anthropic API account.'}
+          Reader: {status.provider === 'audiveris' ? 'Audiveris' : status.provider === 'gemini' ? `Google Gemini (${status.model})` : `Anthropic Claude (${status.model})`}.{' '}
+          {status.provider === 'audiveris'
+            ? status.note
+            : status.provider === 'gemini'
+              ? `${status.note} Each page counts as one reading of your free daily allowance.`
+              : 'Each page costs a few cents to about a dollar, billed to your Anthropic API account.'}
         </p>
       )}
     </section>

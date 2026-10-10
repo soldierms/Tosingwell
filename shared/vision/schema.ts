@@ -80,6 +80,10 @@ export interface ScoreReading {
   questions: string[];
   /** Overall photo quality problems (blur, glare, cut off, skew), in plain words. */
   photoProblems: string[];
+  /** Set by our own code (not the AI): 'audiveris' when the page was read by Audiveris, which gives no per-note confidence. */
+  reader?: 'audiveris';
+  /** Set by our own code: the time signature was not printed on the page but worked out from the bars. */
+  timeGuessed?: boolean;
 }
 
 // ---------- JSON Schema sent to the API ----------

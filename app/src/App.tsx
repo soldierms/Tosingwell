@@ -16,7 +16,7 @@ const PrintDialog = lazy(() => import('./components/PrintDialog').then((m) => ({
 import { PhotoPanel, type ReadResponse } from './components/PhotoPanel';
 import { PhotoView, type PhotoPage } from './components/PhotoView';
 import { NoteEditor } from './components/NoteEditor';
-import { readingToText, withoutHeader } from '../../shared/vision/toText';
+import { continuePage, readingToText, withoutHeader } from '../../shared/vision/toText';
 import { editNote, findEvent, type NoteEdit } from '../../shared/edit/editNote';
 import type { Flag } from '../../shared/model/types';
 import type { PreparedImage } from './vision/prepareImage';
@@ -245,11 +245,13 @@ export function App() {
   const latest = useRef({ format, text });
   latest.current = { format, text };
   const onRead = (res: ReadResponse, image: PreparedImage, mode: 'new' | 'append') => {
-    const conv = readingToText(res.reading);
-    const regions = res.reading.parts[0]?.bars.map((b) => b.region) ?? [];
     const cur = latest.current;
+    const curMeasures = mode === 'append' ? (cur.format === 'solfa' ? parseSolfa(cur.text) : parseStaffText(cur.text)).measures : [];
+    const last = curMeasures[curMeasures.length - 1];
+    const conv = readingToText(mode === 'append' ? continuePage(res.reading, last) : res.reading);
+    const regions = res.reading.parts[0]?.bars.map((b) => b.region) ?? [];
     if (mode === 'append' && conv.format === cur.format) {
-      const firstBar = (cur.format === 'solfa' ? parseSolfa(cur.text) : parseStaffText(cur.text)).measures.length;
+      const firstBar = curMeasures.length;
       const nextText = `${cur.text.trimEnd()}\n${withoutHeader(conv.text)}`;
       latest.current = { format: cur.format, text: nextText };
       replace(cur.format, nextText);

@@ -49,6 +49,28 @@ drag a picture or a `.txt` score file onto the page, or choose a picture with **
 
 ## Reading photos (one-time setup)
 
+### Printed staff music: Audiveris (free, on this Mac — the default)
+
+[Audiveris](https://github.com/Audiveris/audiveris) is a free, open-source program built only for reading
+**printed staff notation**. It runs on this computer: no internet, no API key, no daily limit, nothing sent away.
+
+1. Download `Audiveris-<version>-macosx-arm64.dmg` (Apple Silicon) from
+   <https://github.com/Audiveris/audiveris/releases>, open it, accept the licence (GNU AGPL, free), and drag
+   **Audiveris.app** into Applications (or `~/Applications`). It includes its own Java.
+2. For lyrics, put the English text-reading file in Audiveris's folder:
+   ```bash
+   curl -L -o ~/Library/Application\ Support/AudiverisLtd/audiveris/tessdata/eng.traineddata \
+     https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata
+   ```
+3. Restart the app. The photo panel says **Reader: Audiveris**.
+
+Audiveris cannot read **sol-fa or handwriting**. Pages where it finds no staff notation are passed on to Gemini or
+Claude if a key is set up (below). To use an AI reader for everything, put `READ_PROVIDER=gemini` (or `claude`)
+in `.env`. Audiveris does not say how sure it is about each note: bars whose beats don't add up are flagged, but
+always listen through and compare with the page.
+
+### Sol-fa, handwriting, or an AI reader for everything
+
 Photo reading sends the picture to an AI that can see images. You need **one** API key — choose either:
 
 | | Google Gemini | Anthropic Claude |
@@ -69,7 +91,8 @@ Photo reading sends the picture to an AI that can see images. You need **one** A
    not committed or pushed.
 4. Stop and restart the app (`Ctrl+C`, then `npm run dev`). The photo panel shows which reader is in use.
 
-If both keys are set, Gemini is used unless `.env` has `READ_PROVIDER=claude`.
+If both keys are set, Gemini is used unless `.env` has `READ_PROVIDER=claude`. (With Audiveris installed, it reads
+first; the key is only used for pages without staff notation.)
 
 **Songs with several pages:** choose all the page pictures at once (in page order), or a whole **PDF** (up to
 40 pages), then press **Read all … pages as one song**. Pages are read one after another and joined. If the free

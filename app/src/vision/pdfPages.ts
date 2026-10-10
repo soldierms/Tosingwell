@@ -13,7 +13,7 @@ pdfjs.GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: 'module' })
 const LONG_EDGE = 2576;
 export const MAX_PDF_PAGES = 40;
 
-export async function pdfToImages(file: File, onProgress?: (done: number, total: number) => void): Promise<File[]> {
+export async function pdfToImages(file: File, onProgress?: (done: number, total: number) => void, longEdge = LONG_EDGE): Promise<File[]> {
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   let doc;
   try {
@@ -27,7 +27,7 @@ export async function pdfToImages(file: File, onProgress?: (done: number, total:
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
     const v1 = page.getViewport({ scale: 1 });
-    const scale = LONG_EDGE / Math.max(v1.width, v1.height);
+    const scale = longEdge / Math.max(v1.width, v1.height);
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(viewport.width);

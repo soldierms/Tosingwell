@@ -166,9 +166,25 @@ How it works:
   draft on :5180 is never touched.
 - Accuracy test images in `tests/vision/` are clean renders of our fixtures (best case). Add real photos with a
   typed answer `tests/vision/<name>.expected.<staff|solfa>.txt` to measure real-world accuracy.
-- Audiveris (dedicated OMR): not added. Pros: built for printed staff notation, deterministic, MusicXML output.
-  Cons: Java install + server only, weak on phone photos, no sol-fa, AGPL, merging two readings. Decide only after
-  `npm run test:vision` on real photos shows staff accuracy is not good enough.
+- Audiveris 5.11 (owner chose it, 2026-10-09): default reader when installed (`/Applications` or `~/Applications`,
+  or `AUDIVERIS_PATH`); `READ_PROVIDER` overrides. `server/readAudiveris.ts` runs `Audiveris -batch -export`, unzips
+  the .mxl (`unzip` CLI), and `shared/musicxml/import.ts` turns MusicXML into a ScoreReading (`reader:'audiveris'`,
+  so the "completely sure" warning is skipped). Narrow pictures (short edge < 1600) are enlarged with `sips`
+  (cap 18 Mpx; Audiveris refuses > 20 Mpx); the client sends up to 4000 px (MAX_EDGE_AUDIVERIS) and skips halves.
+  No staff found → falls back to Gemini/Claude if a key exists. OCR: `eng.traineddata` (standard tessdata, not
+  _fast) in `~/Library/Application Support/AudiverisLtd/audiveris/tessdata`.
+- MusicXML import rules: closed score (1 part, 2 staves) → voices split per staff by voice id, ranked by filling
+  the bar, upper/lower by pitch; a lone voice goes to S or A by stem direction (other voice rests); two heads on
+  one stem split. Open score: single-staff parts in order = S A T B; a 2-staff part below them (piano) or a part
+  named piano/organ is dropped. A line of music where Audiveris lost a staff (parts slide up, dummy part) is
+  realigned by clefs. Accidentals are re-derived per output voice (key + earlier accidentals in the bar), not
+  copied from printed ones. Missing time signature → from bar lengths (6/8 if notes start at beat 1.5 more than
+  beat 2). Short bars get a rest + problem note. Text under a staff (Audiveris often files lyrics as `<words>`)
+  is placed on the notes; one lyric line in a closed score is shared by all voices.
+- Measured (2026-10-09, vs hand-checked copies): Praise Him screenshot 124/152 part-bars, St. Jude page at
+  full size 122/180. Errors are mostly Audiveris's (missed hollow notes, ties, voice mix-ups), flagged as problems.
+- Appending pages: `continuePage` adds `[key:…]`/`[time:…]` to the new page's first bar when they differ from
+  the song so far (not for a guessed time).
 
 ## Save, open, export, polish (Phase 5)
 
@@ -207,5 +223,5 @@ How it works:
 - Phase 4 (photo reading, confidence flags, review/edit screen, vision test library): **done**; accuracy not yet
   measured — needs the owner's API key, then `npm run test:vision`.
 - Phase 5 (save/open, MusicXML export, undo, mobile layout, lazy loading, home-screen icon): **done**.
-- Ideas not built: MusicXML import, offline mode (service worker), more verses in the sol-fa view, voice-like
+- Ideas not built: opening MusicXML files directly (the importer exists for Audiveris), offline mode (service worker), more verses in the sol-fa view, voice-like
   playback sound.

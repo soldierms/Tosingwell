@@ -6,7 +6,7 @@
 // so the checks flag them), and every doubt Claude reported becomes a note
 // for the review screen.
 
-import type { Flag, VoiceId } from '../model/types';
+import type { Flag, Key, TimeSig, VoiceId } from '../model/types';
 import { VOICE_NAMES } from '../model/types';
 import { parseKey } from '../convert/pitch';
 import type { ReadingBar, ReadingEvent, ScoreReading } from './schema';
@@ -158,6 +158,20 @@ export function readingToText(r: ScoreReading): ReadingResult {
   return { format, text: lines.join('\n') + '\n', notes };
 }
 
+/**
+ * For adding a page to a song: if the page's key or time signature differs from where the song is now
+ * (e.g. the next movement of a Mass), start the page with [key:…]/[time:…] — its header is dropped.
+ */
+export function continuePage(r: ScoreReading, now: { key: Key; time: TimeSig } | undefined): ScoreReading {
+  if (!now) return r;
+  const add: string[] = [];
+  const k = r.key ? parseKey(r.key) : undefined;
+  if (k && (k.doh.step !== now.key.doh.step || k.doh.alter !== now.key.doh.alter || k.mode !== now.key.mode)) add.push(`key:${r.key}`);
+  if (r.time && !r.timeGuessed && r.time !== `${now.time.beats}/${now.time.beatType}`) add.push(`time:${r.time}`);
+  if (!add.length) return r;
+  return { ...r, parts: r.parts.map((p) => ({ ...p, bars: p.bars.map((b, i) => (i === 0 ? { ...b, directives: [...add, ...b.directives] } : b)) })) };
+}
+
 /** For adding a second page: drop the header lines so the parts simply continue. */
 export function withoutHeader(text: string): string {
   return text
@@ -192,7 +206,7 @@ export function suspicious(r: ScoreReading): string[] {
   const events = bars.flatMap((b) => b.events);
   const confs = [...bars.map((b) => b.confidence), ...events.map((e) => e.confidence)];
   const bigEnough = events.length >= 80 || (r.notation === 'solfa' && bars.length >= 40);
-  if (bigEnough && confs.every((c) => c >= 0.99)) {
+  if (bigEnough && r.reader !== 'audiveris' && confs.every((c) => c >= 0.99)) {
     out.push('The reader said it was completely sure of every note on the page, which is unlikely. Mistakes will not show in orange — please check every bar against the photo.');
   }
   return out;
