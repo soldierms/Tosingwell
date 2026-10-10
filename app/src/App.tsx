@@ -113,7 +113,7 @@ export function App() {
     }
     (async () => {
       for (const f of ['staff', 'solfa'] as const) {
-        const r = await fetch(`/_private/${name}.${f}.txt`).catch(() => undefined);
+        const r = await fetch(`${import.meta.env.BASE_URL}_private/${name}.${f}.txt`).catch(() => undefined);
         const t = r?.ok ? await r.text() : '';
         if (!t.includes('Title:')) continue; // a missing file comes back as the app page
         replace(f, t);

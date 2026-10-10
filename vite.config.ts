@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 // The website lives in app/. Shared music code (model, parsers, checks) lives in shared/.
 export default defineConfig({
   root: 'app',
+  // The website (GitHub Pages) lives at /Tosingwell/; BASE_PATH is set when building it.
+  base: process.env.BASE_PATH ?? '/',
   plugins: [react()],
   // Port 5180 (5173 is used by another program on this Mac). host: true lets your phone
   // open the dev site on the same Wi-Fi.

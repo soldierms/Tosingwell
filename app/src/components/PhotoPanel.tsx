@@ -42,6 +42,8 @@ interface Props {
 }
 
 const HALVES_KEY = 'tosingwell.photo-halves';
+/** The website version (GitHub Pages) has no photo-reading server. */
+const WEB = import.meta.env.VITE_WEB === '1';
 
 export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   const [status, setStatus] = useState<{ ready: boolean; model: string; provider: 'audiveris' | 'gemini' | 'claude'; note?: string } | 'offline'>();
@@ -70,6 +72,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
 
   // A reading that finished while this page was reloading (or the phone was locked)?
   useEffect(() => {
+    if (WEB) return;
     fetch('/api/last-reading')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -93,6 +96,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   };
 
   useEffect(() => {
+    if (WEB) return setStatus('offline');
     fetch('/api/status')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setStatus)
@@ -259,7 +263,13 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
           <button className="link" onClick={() => { markSeen(missed.id); setMissed(undefined); }}>Not now</button>
         </p>
       )}
-      {status === 'offline' && (
+      {status === 'offline' && WEB && (
+        <p className="warning-text">
+          Reading photos only works in the Tosingwell app on the choirmaster’s computer. Here you can type a song in, or open a
+          score file (<code>.staff.txt</code> / <code>.solfa.txt</code>) with 📂 Open file, then play, print and make rehearsal recordings.
+        </p>
+      )}
+      {status === 'offline' && !WEB && (
         <p className="warning-text">The photo-reading server is not running. Start the app with <code>npm run dev</code> (it starts both parts).</p>
       )}
       {status && status !== 'offline' && !status.ready && (
