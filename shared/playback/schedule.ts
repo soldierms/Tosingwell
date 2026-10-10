@@ -214,6 +214,8 @@ export function buildSchedule(score: Score, order: PlayStep[], opts: ScheduleOpt
             tiedFrom.writtenEnd = t1;
             // Still record this event for follow-along highlighting.
             notes.push({ part: part.id, eventId: ev.id, step: k, midi: [], start: t0, end: t1, writtenEnd: t1, velocity: 0, rest: true });
+            // The tie ends here unless this note is tied on too: the next note is sung again.
+            if (!ev.tieToNext) tiedFrom = undefined;
           } else {
             let vel = dyn;
             if (ev.dynamic === 'sf' || ev.dynamic === 'sfz') dyn = DEFAULT_VELOCITY; // one-note accent

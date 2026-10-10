@@ -100,3 +100,14 @@ describe('adding a page with a different key or time', () => {
     expect(continuePage({ ...page, key: 'Bb', time: '6/8' }, now).parts[0].bars[0].directives).toEqual([]);
   });
 });
+
+describe('ties in playback', () => {
+  it('re-sings a note after a tie ends, even on the same pitch', async () => {
+    const { parseStaffText } = await import('../shared/staff/parse');
+    const { expandPlayOrder } = await import('../shared/playback/expand');
+    const { buildSchedule } = await import('../shared/playback/schedule');
+    const s = parseStaffText('Key: Bb   Time: 2/4\nS: | rq rq G4e~ | G4s G4e.~ G4q |\n');
+    const sch = buildSchedule(s, expandPlayOrder(s.measures).steps, { speed: 1 });
+    expect(sch.notes.filter((n) => !n.rest && n.midi.length).length).toBe(2); // "mmɔ" (tied) and "bɔ'o" (tied)
+  });
+});
