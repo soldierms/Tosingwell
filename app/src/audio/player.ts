@@ -30,6 +30,7 @@ export class ScorePlayer {
   private instruments = new Map<VoiceId, Instrument>();
   private click?: Tone.Synth;
   private loading?: Promise<'piano' | 'synth'>;
+  private buffers?: Tone.ToneAudioBuffers;
   private ticker?: ReturnType<typeof setInterval>;
   sound: 'piano' | 'synth' | undefined;
 
@@ -50,7 +51,7 @@ export class ScorePlayer {
         resolve('synth');
       };
       const timer = setTimeout(useSynth, 20000);
-      const buffers = new Tone.ToneAudioBuffers({
+      const buffers = (this.buffers = new Tone.ToneAudioBuffers({
         urls,
         baseUrl: SAMPLE_BASE,
         onload: () => {
@@ -70,7 +71,7 @@ export class ScorePlayer {
           clearTimeout(timer);
           if (!this.sound) useSynth();
         },
-      });
+      }));
     });
     return this.loading;
   }
@@ -147,5 +148,48 @@ export class ScorePlayer {
     transport.cancel(0);
     transport.loop = false;
     for (const i of this.instruments.values()) i.releaseAll();
+  }
+
+  /**
+   * Make an audio recording of the schedule without playing it (much faster than real time), with the
+   * browser's own offline renderer: each voice at its own loudness (0 = left out), optional count-in.
+   */
+  async render(schedule: Schedule, opts: { countIn: boolean; beatsPerBar: number; gains: Record<VoiceId, number> }): Promise<AudioBuffer> {
+    await this.load();
+    const rate = 44100;
+    const beat = schedule.startBeatSeconds;
+    const offset = opts.countIn ? opts.beatsPerBar * beat : 0;
+    const length = offset + schedule.duration + 2;
+    const ctx = new OfflineAudioContext(2, Math.ceil(length * rate), rate);
+    const master = ctx.createGain();
+    master.gain.value = 0.4; // like the -8 dB channels used for playback
+    master.connect(ctx.destination);
+    const samples = this.sound === 'piano' && this.buffers
+      ? SAMPLE_NOTES.map((n) => ({ midi: Tone.Frequency(n).toMidi(), buffer: this.buffers!.get(n).get() as AudioBuffer }))
+      : [];
+    const tone = (t: number, freq: number, dur: number, gain: number, type: OscillatorType, attack: number, release: number) => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + attack);
+      g.gain.setValueAtTime(gain, t + Math.max(attack, dur)); g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(attack, dur) + release);
+      o.connect(g).connect(master); o.start(t); o.stop(t + Math.max(attack, dur) + release + 0.05);
+    };
+    if (opts.countIn) for (let i = 0; i < opts.beatsPerBar; i++) tone(i * beat, i === 0 ? 1046.5 : 784, 0.03, 0.5, 'triangle', 0.001, 0.08);
+    for (const n of schedule.notes) {
+      const vg = opts.gains[n.part] ?? 0;
+      if (n.rest || !n.midi.length || !(vg > 0)) continue;
+      const t = offset + n.start;
+      const dur = Math.max(0.05, n.end - n.start);
+      for (const m of n.midi) {
+        const gain = vg * n.velocity;
+        if (!samples.length) { tone(t, 440 * 2 ** ((m - 69) / 12), dur, gain * 0.5, 'triangle', 0.02, 0.4); continue; }
+        const s = samples.reduce((a, b) => (Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a));
+        const src = ctx.createBufferSource(); src.buffer = s.buffer; src.playbackRate.value = 2 ** ((m - s.midi) / 12);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(gain, t); g.gain.setValueAtTime(gain, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1);
+        src.connect(g).connect(master); src.start(t); src.stop(t + dur + 1.05);
+      }
+    }
+    return ctx.startRendering();
   }
 }

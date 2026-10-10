@@ -99,6 +99,11 @@ notes warned) · ties to different notes · repeats/endings/D.C./D.S./Coda/Fine 
   back to a simple synth), one `Tone.Channel` per voice for solo/mute, count-in clicks, loop.
   Follow-along polls `transport.seconds` every 50 ms (do NOT use Tone.Draw — it drops late events).
 - `app/src/components/PlayerPanel.tsx` — controls; loop plays the chosen bars as written (no repeats).
+- Rehearsal recordings (`RehearsalRecordings.tsx`, owner asked 2026-10-10): MP3s for the choir — full choir, each part
+  loud (others at 22%), each part alone, or each part missing (sing along). `ScorePlayer.render` uses a plain
+  `OfflineAudioContext` with the loaded Salamander buffers (Tone.Offline hung the page); `audio/encode.ts` normalises to
+  90% peak and encodes 128 kbps MP3 with `@breezystack/lamejs` (LGPL). Follows the play order, speed and count-in.
+  Share = Web Share API with files (phone share sheet → WhatsApp); Download otherwise.
 
 ## Printing and PDF (Phase 3)
 

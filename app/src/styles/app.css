@@ -321,3 +321,9 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
 .page-thumbs li.now { border-color: var(--warning); }
 .tempo { align-items: center; }
 .tempo input[type="number"] { width: 4.5em; text-align: center; }
+.rehearsal { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border, #ddd); }
+.rehearsal h3 { margin: 0 0 4px; }
+.recordings { list-style: none; padding: 0; display: grid; gap: 10px; }
+.recordings li { display: grid; gap: 4px; }
+.recordings audio { width: 100%; max-width: 420px; }
+@media print { .rehearsal { display: none; } }

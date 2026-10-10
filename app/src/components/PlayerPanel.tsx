@@ -6,6 +6,7 @@ import type { Score, VoiceId } from '../../../shared/model/types';
 import { describePlayOrder, expandPlayOrder, type PlayStep } from '../../../shared/playback/expand';
 import { buildSchedule, tempoValue } from '../../../shared/playback/schedule';
 import type { ScorePlayer } from '../audio/player';
+import { RehearsalRecordings } from './RehearsalRecordings';
 
 export interface FollowState {
   /** Note/rest ids sounding right now. */
@@ -266,6 +267,7 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
         <span className="muted small">(plays these bars over and over, as written)</span>
       </div>
       {sound && <p className="muted small">Sound: {sound}</p>}
+      <RehearsalRecordings score={score} steps={steps} speed={speed} countIn={countIn} getPlayer={getPlayer} />
     </section>
   );
 }
