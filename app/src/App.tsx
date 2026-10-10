@@ -183,8 +183,15 @@ export function App() {
     const isTyping = (t: EventTarget | null) => t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement;
     const onPaste = (e: ClipboardEvent) => {
       if (isTyping(e.target)) return;
-      const img = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
-      if (img) { e.preventDefault(); takeImage(img); return; }
+      const files = [...(e.clipboardData?.files ?? [])];
+      const txt = files.find((f) => /\.txt$/i.test(f.name) || f.type.startsWith('text/'));
+      if (txt) {
+        e.preventDefault();
+        void txt.text().then((t) => startFresh(looksLike(t) ?? (/\.staff\.txt$/i.test(txt.name) ? 'staff' : 'solfa'), t, `Pasted ${txt.name}.${files.length > 1 ? ' Pictures pasted with it were not read again.' : ''} ↶ Undo brings back the previous score.`));
+        return;
+      }
+      const pics = files.filter((f) => f.type.startsWith('image/'));
+      if (pics.length) { e.preventDefault(); takeImage(pics); return; }
       const t = e.clipboardData?.getData('text/plain') ?? '';
       if (/^\s*[SATB]\s*:/m.test(t)) {
         e.preventDefault();
@@ -195,14 +202,15 @@ export function App() {
       e.preventDefault();
       setDragging(false);
       const all = [...(e.dataTransfer?.files ?? [])];
-      const f = all[0];
-      if (!f) return;
+      if (!all.length) return;
       const pics = all.filter(isPicture);
-      if (pics.length) takeImage(pics);
-      else if (/\.txt$/i.test(f.name) || f.type.startsWith('text/')) {
+      // A score text file wins over pictures dropped with it: it is the typed (checked) version of those pages.
+      const f = all.find((x) => /\.txt$/i.test(x.name) || x.type.startsWith('text/'));
+      if (f) {
         const t = await f.text();
-        startFresh(looksLike(t) ?? (/\.staff\.txt$/i.test(f.name) ? 'staff' : 'solfa'), t, `Opened ${f.name}. ↶ Undo brings back the previous score.`);
-      }
+        const skipped = pics.length ? ` The ${pics.length} picture${pics.length > 1 ? 's' : ''} dropped with it ${pics.length > 1 ? 'were' : 'was'} not read again.` : '';
+        startFresh(looksLike(t) ?? (/\.staff\.txt$/i.test(f.name) ? 'staff' : 'solfa'), t, `Opened ${f.name}.${skipped} ↶ Undo brings back the previous score.`);
+      } else if (pics.length) takeImage(pics);
     };
     const onOver = (e: DragEvent) => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); setDragging(true); } };
     const onLeave = (e: DragEvent) => { if (!e.relatedTarget) setDragging(false); };
