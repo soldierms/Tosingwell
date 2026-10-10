@@ -19,6 +19,9 @@ interface Props {
   onPasteImage: (file: File) => void;
 }
 
+/** The public website (GitHub Pages): shared links open here. */
+const WEBSITE = 'https://soldierms.github.io/Tosingwell/';
+
 const NEW_SCORE = `Title: New score
 Key: C   Time: 4/4   Tempo: q=80
 S: | d :r :m :f | s :- :- :- |]
@@ -90,6 +93,29 @@ export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo,
     }
   };
 
+  /** A link with the whole song inside it, for WhatsApp/email. Always points at the public website. */
+  const shareLink = async () => {
+    try {
+      const { encodeSongHash } = await import('../../../shared/share/link');
+      const hash = await encodeSongHash(format, text);
+      const base = import.meta.env.VITE_WEB === '1' ? location.origin + location.pathname : WEBSITE;
+      const url = base + hash;
+      const msg = `${title} — open this link to see, play and practise the song in Tosingwell:`;
+      if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        try {
+          await navigator.share({ title, text: msg, url });
+          return;
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') return;
+        }
+      }
+      await navigator.clipboard.writeText(`${msg}\n${url}`);
+      say(`Link copied (${Math.round(url.length / 100) / 10}k characters). Paste it into WhatsApp or an email — the song is inside the link.`);
+    } catch {
+      say('Could not make the link here. Use ⬇ Download and send the file instead.');
+    }
+  };
+
   const toggleList = () => {
     setList(listScores());
     setShowList((s) => !s);
@@ -104,6 +130,7 @@ export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo,
         <button onClick={save} title="Save in My scores on this device">💾 Save</button>
         <button onClick={copy} title="Copy the score text">📋 Copy</button>
         <button onClick={paste} title="Paste score text or a picture">📥 Paste</button>
+        <button onClick={shareLink} title="A link with the whole song inside, to send on WhatsApp">🔗 Share link</button>
         <button onClick={onDownload} title="Download the score as a text file">⬇ Download</button>
         <button onClick={onMusicXml} title="For MuseScore, Finale, Sibelius…">⬇ MusicXML</button>
         <span className="spacer" />

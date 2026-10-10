@@ -100,6 +100,24 @@ export function App() {
     setFormat(nextFormat);
     setText(nextText);
   };
+  // A shared song link (#song=…): the whole score is inside the link. Open it, then tidy the address so a
+  // reload does not throw away changes made since.
+  useEffect(() => {
+    const open = async () => {
+      if (!location.hash.startsWith('#song=')) return;
+      const { decodeSongHash } = await import('../../shared/share/link');
+      const song = await decodeSongHash(location.hash);
+      history.replaceState(null, '', location.pathname + location.search);
+      if (!song) return setNotice('This song link is damaged or incomplete — ask for it to be sent again.');
+      const title = song.text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? 'the song';
+      startFresh(song.format, song.text, `Opened “${title}” from a shared link. Press 💾 Save to keep it in My scores. ↶ Undo brings back what you had before.`);
+    };
+    void open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ?score=NAME opens a score file kept on this computer in app/public/_private/ (not in git:
   // private, copyrighted music), so one link shows the same checked score in any browser or phone.
   useEffect(() => {
