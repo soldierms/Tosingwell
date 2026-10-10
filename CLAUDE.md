@@ -178,11 +178,12 @@ How it works:
   one stem split. Open score: single-staff parts in order = S A T B; a 2-staff part below them (piano) or a part
   named piano/organ is dropped. A line of music where Audiveris lost a staff (parts slide up, dummy part) is
   realigned by clefs. Accidentals are re-derived per output voice (key + earlier accidentals in the bar), not
-  copied from printed ones. Missing time signature → from bar lengths (6/8 if notes start at beat 1.5 more than
-  beat 2). Short bars get a rest + problem note. Text under a staff (Audiveris often files lyrics as `<words>`)
+  copied from printed ones. Missing time signature (Audiveris often misses it) → each bar's length from its notes; a new length counts as a
+  time change only if it holds 2 bars in a row ([time:…] added); 6/8 if notes start at beat 1.5 more than beat 2.
+  continuePage carries the page's (possibly worked-out) time to appended pages. Short bars get a rest + problem note. Text under a staff (Audiveris often files lyrics as `<words>`)
   is placed on the notes; one lyric line in a closed score is shared by all voices.
 - Measured (2026-10-09, vs hand-checked copies): Praise Him screenshot 124/152 part-bars, St. Jude page at
-  full size 122/180. Errors are mostly Audiveris's (missed hollow notes, ties, voice mix-ups), flagged as problems.
+  full size 122/180; The Lord Is My Shepherd, all 14 PDF pages: 312/332 sung bars, 13 errors (was 321). Errors are mostly Audiveris's (missed hollow notes, ties, voice mix-ups), flagged as problems.
 - Appending pages: `continuePage` adds `[key:…]`/`[time:…]` to the new page's first bar when they differ from
   the song so far (not for a guessed time).
 

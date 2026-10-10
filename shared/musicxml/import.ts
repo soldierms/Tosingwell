@@ -515,33 +515,49 @@ export function musicXmlToReading(xml: string): ScoreReading {
     else plan.push({ voice: 'S', slot: slots[0], which: 'all' });
   }
 
-  // No time signature found: work out the bar length from the bars themselves (the most common length).
+  // No time signature found (Audiveris often misses it): work out each bar's length from its notes. A new length
+  // counts as a time change only if it holds for two bars in a row, so one misread bar doesn't change the time.
   let guessedTime: string | undefined;
   if (parts.length && !parts.some((p) => p.hasTime)) {
-    const counts = new Map<number, number>();
-    for (const p of parts) p.measures.forEach((m, i) => {
-      if (i === 0 || i === p.measures.length - 1) return;
-      for (const sv of m.staves.values()) for (const notes of sv.values()) {
-        const l = Math.round(voiceLength(notes) * 8) / 8;
-        if (l > 0) counts.set(l, (counts.get(l) ?? 0) + 1);
-      }
+    const n = Math.max(...parts.map((p) => p.measures.length));
+    const mode = (vals: number[]) => {
+      const c = new Map<number, number>();
+      for (const v of vals) if (v > 0) c.set(v, (c.get(v) ?? 0) + 1);
+      return [...c.entries()].sort((x, y) => y[1] - x[1] || y[0] - x[0])[0]?.[0] ?? 0;
+    };
+    const raw = Array.from({ length: n }, (_, i) =>
+      mode(parts.flatMap((p) => [...(p.measures[i]?.staves.values() ?? [])].flatMap((sv) => [...sv.values()].map((ns) => Math.round(voiceLength(ns) * 8) / 8)))),
+    );
+    let cur = mode(raw.slice(0, 6));
+    const lens = raw.map((l, i) => {
+      if (l > 0 && l !== cur && (raw[i + 1] === l || (i === n - 1 && i > 0 && raw[i - 1] === l))) cur = l;
+      return cur;
     });
-    const len = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-    if (len) {
-      // Compound time (6/8, 12/8): notes keep starting half-way through the 2nd quarter (the 2nd dotted-quarter
-      // beat) rather than on the 3rd quarter.
+    // Compound time (6/8, 12/8): notes keep starting half-way through the 2nd quarter (the 2nd dotted-quarter
+    // beat) rather than on the 3rd quarter.
+    const nameFor = (len: number, from: number, to: number) => {
       let mid = 0;
       let third = 0;
-      for (const p of parts) for (const m of p.measures) for (const sv of m.staves.values()) for (const ns of sv.values()) for (const n of ns) {
-        if (n.chord || n.grace || n.rest || n.at === undefined) continue;
-        const at = n.at % 3;
+      for (const p of parts) for (const m of p.measures.slice(from, to)) for (const sv of m.staves.values()) for (const ns of sv.values()) for (const x of ns) {
+        if (x.chord || x.grace || x.rest || x.at === undefined) continue;
+        const at = x.at % 3;
         if (Math.abs(at - 1.5) < 1e-6) mid++;
         else if (Math.abs(at - 2) < 1e-6) third++;
       }
       const dotted = mid > third;
-      guessedTime = len === 3 ? (dotted ? '6/8' : '3/4') : len === 1.5 ? '3/8' : len === 4.5 ? '9/8' : len === 6 ? (dotted ? '12/8' : '6/4') : `${len}/4`;
-      for (const p of parts) for (const m of p.measures) m.lenDivs = len;
-      questions.push(`No time signature was found on the page; the bars look like ${guessedTime}. Please check the "Time:" line.`);
+      return len === 3 ? (dotted ? '6/8' : '3/4') : len === 1.5 ? '3/8' : len === 4.5 ? '9/8' : len === 6 ? (dotted ? '12/8' : '6/4') : `${len}/4`;
+    };
+    if (cur > 0) {
+      const changes = lens.map((l, i) => (i === 0 || l !== lens[i - 1] ? i : -1)).filter((i) => i >= 0);
+      changes.forEach((from, k) => {
+        const to = changes[k + 1] ?? n;
+        const name = nameFor(lens[from], from, to);
+        if (from === 0) guessedTime = name;
+        else for (const p of parts) if (p.measures[from]) p.measures[from].directives.push(`time:${name}`);
+      });
+      for (const p of parts) p.measures.forEach((m, i) => (m.lenDivs = lens[i]));
+      const all = [guessedTime, ...changes.slice(1).map((i) => nameFor(lens[i], i, n))].filter(Boolean);
+      questions.push(`No time signature was printed or found; from the notes the bars look like ${[...new Set(all)].join(', then ')}. Please check the "Time:" line${all.length > 1 ? ' and the time changes' : ''}.`);
     }
   }
 

@@ -90,14 +90,13 @@ describe('MusicXML import (Audiveris)', () => {
 });
 
 describe('adding a page with a different key or time', () => {
-  it('starts the page with [key:…]/[time:…] only when they change and were printed', async () => {
+  it('starts the page with [key:…]/[time:…] only when they change', async () => {
     const { continuePage } = await import('../shared/vision/toText');
     const { parseKey } = await import('../shared/convert/pitch');
     const bar = { number: 1, events: [], solfa: null, solfaLyrics: null, repeatStart: false, repeatEnd: false, endBarline: 'single' as const, directives: [], unreadable: false, problem: null, region: null, confidence: 1 };
     const page = { notation: 'staff' as const, title: null, composer: null, key: 'G', time: '3/4', tempo: null, parts: [{ voice: 'S' as const, clef: 'treble' as const, bars: [bar] }], questions: [], photoProblems: [] };
     const now = { key: parseKey('Bb')!, time: { beats: 6, beatType: 8 } };
     expect(continuePage(page, now).parts[0].bars[0].directives).toEqual(['key:G', 'time:3/4']);
-    expect(continuePage({ ...page, timeGuessed: true }, now).parts[0].bars[0].directives).toEqual(['key:G']);
     expect(continuePage({ ...page, key: 'Bb', time: '6/8' }, now).parts[0].bars[0].directives).toEqual([]);
   });
 });

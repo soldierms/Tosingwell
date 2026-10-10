@@ -167,7 +167,7 @@ export function continuePage(r: ScoreReading, now: { key: Key; time: TimeSig } |
   const add: string[] = [];
   const k = r.key ? parseKey(r.key) : undefined;
   if (k && (k.doh.step !== now.key.doh.step || k.doh.alter !== now.key.doh.alter || k.mode !== now.key.mode)) add.push(`key:${r.key}`);
-  if (r.time && !r.timeGuessed && r.time !== `${now.time.beats}/${now.time.beatType}`) add.push(`time:${r.time}`);
+  if (r.time && r.time !== `${now.time.beats}/${now.time.beatType}`) add.push(`time:${r.time}`);
   if (!add.length) return r;
   return { ...r, parts: r.parts.map((p) => ({ ...p, bars: p.bars.map((b, i) => (i === 0 ? { ...b, directives: [...add, ...b.directives] } : b)) })) };
 }
