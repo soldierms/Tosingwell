@@ -207,6 +207,13 @@ How it works:
 - Phone: sticky top bar with jump links (#type #photo #play #score), larger touch targets, web app manifest +
   icons in `app/public/` (Add to Home Screen; no offline service worker).
 
+## Website (GitHub Pages)
+
+- https://soldierms.github.io/Tosingwell/ — built by `.github/workflows/pages.yml` on every push to main
+  (`BASE_PATH=/Tosingwell/`, `VITE_WEB=1`). No server there: the photo panel says photo reading only works in the
+  local app (`WEB` flag in PhotoPanel). Private scores are gitignored and `dist/_private` is removed, so they are never
+  published; choirmasters share `.staff.txt` / `.solfa.txt` files and open them with 📂 Open file.
+
 ## Folder map
 
 - `shared/model` — types, fractions, score helpers

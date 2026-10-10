@@ -22,6 +22,11 @@ A music application for reading, converting, playing and printing choral scores 
 | 4 | Photo upload and reading, review/edit screen | ✅ done (needs your API key) |
 | 5 | Save/open, MusicXML export, mobile polish | ✅ done |
 
+## Use it online
+
+**https://soldierms.github.io/Tosingwell/** works on any phone or computer: type or open a score file, play each
+part, print, and make rehearsal recordings. Reading photos needs the app running on your own computer (below).
+
 ## Try it
 
 ```bash
