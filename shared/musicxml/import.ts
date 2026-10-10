@@ -528,9 +528,16 @@ export function musicXmlToReading(xml: string): ScoreReading {
     const raw = Array.from({ length: n }, (_, i) =>
       mode(parts.flatMap((p) => [...(p.measures[i]?.staves.values() ?? [])].flatMap((sv) => [...sv.values()].map((ns) => Math.round(voiceLength(ns) * 8) / 8)))),
     );
+    // A bar where every voice that sings agrees on a different length is a real short/long bar (e.g. a 3-beat
+    // bar in 4/4), not a misreading.
+    const agreed = Array.from({ length: n }, (_, i) => {
+      const ls = parts.flatMap((p) => [...(p.measures[i]?.staves.values() ?? [])].flatMap((sv) => [...sv.values()].filter((ns) => noteLength(ns) > 0).map((ns) => Math.round(voiceLength(ns) * 8) / 8)));
+      return ls.length >= 2 && ls.every((l) => l === ls[0]) ? ls[0] : 0;
+    });
     let cur = mode(raw.slice(0, 6));
     const lens = raw.map((l, i) => {
       if (l > 0 && l !== cur && (raw[i + 1] === l || (i === n - 1 && i > 0 && raw[i - 1] === l))) cur = l;
+      else if (i > 0 && agreed[i] && agreed[i] !== cur) return agreed[i]; // one bar only
       return cur;
     });
     // Compound time (6/8, 12/8): notes keep starting half-way through the 2nd quarter (the 2nd dotted-quarter
@@ -591,7 +598,8 @@ export function musicXmlToReading(xml: string): ScoreReading {
       const got = pick.events.reduce((s, ev) => s + (ev[0].grace ? 0 : ev[0].divs), 0);
       const edge = (i === 0 && m.implicit) || i === slot.part.measures.length - 1;
       const short = pick.events.length > 0 && Math.abs(got - len) > 1e-6 && !edge;
-      if (short && got < len) {
+      // A short first bar is a lead-in (pickup): leave it short, the parser treats it as bar 0.
+      if (short && got < len && !(i === 0 && got > 0)) {
         // Missing time at the end of the bar: fill it with a rest (flagged), so the beats line up again.
         pick.events.push([{ ...pick.events[pick.events.length - 1][0], rest: true, pitch: undefined, chord: false, grace: false,
           divs: len - got, type: undefined, dots: 0, tie: false, tupletStart: undefined, tupletEnd: false, lyric: null,
