@@ -612,6 +612,16 @@ export function musicXmlToReading(xml: string): ScoreReading {
     return { voice, clef, bars };
   });
 
+  // Every voice must have the same number of bars: pad a short part with empty, flagged bars.
+  const most = Math.max(0, ...readingParts.map((p) => p.bars.length));
+  for (const p of readingParts) {
+    while (p.bars.length < most) {
+      const ref = readingParts.find((q) => q.bars.length === most)!.bars[p.bars.length];
+      p.bars.push({ ...ref, events: [], directives: [...ref.directives], unreadable: true, confidence: 0,
+        problem: 'Audiveris found no bar here for this voice' });
+    }
+  }
+
   const titleEl = kid(score, 'movement-title') ?? find(kid(score, 'work'), 'work-title');
   const composer = kids(kid(score, 'identification'), 'creator').find((c) => c.attrs.type === 'composer')?.text.trim() || null;
   return {
