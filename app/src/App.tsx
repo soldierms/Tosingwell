@@ -14,6 +14,7 @@ import { PlayerPanel, type FollowState } from './components/PlayerPanel';
 // The print window is loaded only when it is first opened.
 const PrintDialog = lazy(() => import('./components/PrintDialog').then((m) => ({ default: m.PrintDialog })));
 import { PhotoPanel, type ReadResponse } from './components/PhotoPanel';
+import { SolfaKeypad } from './components/SolfaKeypad';
 import { PhotoView, type PhotoPage } from './components/PhotoView';
 import { NoteEditor } from './components/NoteEditor';
 import { continuePage, readingToText, withoutHeader } from '../../shared/vision/toText';
@@ -55,6 +56,7 @@ export function App() {
   const [selected, setSelected] = useState<string>();
   const [incomingImage, setIncomingImage] = useState<{ files: File[]; at: number }>();
   const [dragging, setDragging] = useState(false);
+  const [keypadOpen, setKeypadOpen] = useState(false);
   const isPicture = (f: File) => f.type.startsWith('image/') || f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
   const takeImage = (file: File | File[]) => {
     setIncomingImage({ files: Array.isArray(file) ? file : [file], at: Date.now() });
@@ -386,6 +388,12 @@ export function App() {
                 Read it as {wrongFormat === 'solfa' ? 'sol-fa' : 'staff notation'}
               </button>
             </p>
+          )}
+          {format === 'solfa' && (
+            <details className="keypad-box" open={keypadOpen} onToggle={(e) => setKeypadOpen((e.target as HTMLDetailsElement).open)}>
+              <summary>🎹 Tap keypad — enter sol-fa without typing</summary>
+              <SolfaKeypad score={result.score} text={text} onChange={(t) => replace('solfa', t)} />
+            </details>
           )}
           <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} rows={14} aria-label="Score text" />
           <FormatHelp format={format} />

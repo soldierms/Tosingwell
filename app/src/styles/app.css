@@ -327,3 +327,14 @@ button.link { border: none; background: none; color: var(--accent); text-decorat
 .recordings li { display: grid; gap: 4px; }
 .recordings audio { width: 100%; max-width: 420px; }
 @media print { .rehearsal { display: none; } }
+.keypad-box { margin: 8px 0; }
+.keypad-box summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.keypad { display: grid; gap: 8px; }
+.keypad button.on { outline: 2px solid currentColor; font-weight: 700; }
+.keypad .keys { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.keypad .key { font-size: 1.6rem; padding: 14px 0; font-weight: 700; }
+.keypad .small-keys { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+.keypad .small-keys button { padding: 8px 0; }
+.keypad-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.keypad-bar code { font-size: 1.1rem; padding: 4px 8px; background: rgba(127,127,127,.12); border-radius: 6px; }
+@media print { .keypad-box { display: none; } }

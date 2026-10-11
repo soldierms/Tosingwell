@@ -214,6 +214,15 @@ How it works:
   local app (`WEB` flag in PhotoPanel). Private scores are gitignored and `dist/_private` is removed, so they are never
   published; choirmasters share `.staff.txt` / `.solfa.txt` files and open them with 📂 Open file.
 
+## Entering and sharing songs
+
+- Tap keypad (`app/src/components/SolfaKeypad.tsx`, logic `shared/solfa/keypad.ts`, owner asked 2026-10-11): shown under
+  the text box in sol-fa mode. Bar = quarter-pulse slots; lengths that don't fit are disabled; a full bar is written with
+  `renderBar` and added after the part's last line (`appendBar`); every tapped note is beeped (WebAudio). Tests read the
+  written text back with the parser.
+- Song links (`shared/share/link.ts`): 🔗 Share link packs the text (deflate-raw, base64url) into `#song=s.…`/`#song=t.…`
+  on the website URL; App opens it on load / hashchange and clears the hash.
+
 ## Folder map
 
 - `shared/model` — types, fractions, score helpers
