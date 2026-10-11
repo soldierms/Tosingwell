@@ -212,7 +212,11 @@ How it works:
 - https://soldierms.github.io/Tosingwell/ — built by `.github/workflows/pages.yml` on every push to main
   (`BASE_PATH=/Tosingwell/`, `VITE_WEB=1`). No server there: the photo panel says photo reading only works in the
   local app (`WEB` flag in PhotoPanel). Private scores are gitignored and `dist/_private` is removed, so they are never
-  published; choirmasters share `.staff.txt` / `.solfa.txt` files and open them with 📂 Open file.
+  published; choirmasters share `.staff.txt` / `.solfa.txt` files or 🔗 song links.
+- Website photo reading (`app/src/vision/browserReader.ts`): each user's OWN key in localStorage
+  (`tosingwell.readerKey.gemini|claude`), called straight from the browser (Gemini REST with `x-goog-api-key`; Claude
+  Messages API streaming with `anthropic-dangerous-direct-browser-access`; both allow CORS, checked 2026-10-11).
+  Prompt shared in `shared/vision/prompt.ts`. Key form = `ReaderKey` in PhotoPanel (WEB only).
 
 ## Entering and sharing songs
 

@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ScoreReading } from '../../../shared/vision/schema';
+import { CLAUDE_MODEL, GEMINI_MODELS, getKey, getProvider, readInBrowser, saveReader, type BrowserProvider } from '../vision/browserReader';
 import { MAX_EDGE_AUDIVERIS, prepareImage, splitPicture, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
 
 export interface ReadResponse {
@@ -96,7 +97,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   };
 
   useEffect(() => {
-    if (WEB) return setStatus('offline');
+    if (WEB) return setStatus(webStatus());
     fetch('/api/status')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setStatus)
@@ -161,6 +162,10 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
 
   /** Read one page. Throws an Error whose `status` is the HTTP status. */
   const readOne = async (img: PreparedImage): Promise<ReadResponse> => {
+    if (WEB) {
+      const p = getProvider();
+      return readInBrowser(p, getKey(p), img.base64, img.mediaType);
+    }
     const res = await fetch('/api/read-score', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -263,16 +268,11 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
           <button className="link" onClick={() => { markSeen(missed.id); setMissed(undefined); }}>Not now</button>
         </p>
       )}
-      {status === 'offline' && WEB && (
-        <p className="warning-text">
-          Reading photos only works in the Tosingwell app on the choirmaster’s computer. Here you can type a song in, or open a
-          score file (<code>.staff.txt</code> / <code>.solfa.txt</code>) with 📂 Open file, then play, print and make rehearsal recordings.
-        </p>
-      )}
+      {WEB && <ReaderKey onSaved={() => setStatus(webStatus())} />}
       {status === 'offline' && !WEB && (
         <p className="warning-text">The photo-reading server is not running. Start the app with <code>npm run dev</code> (it starts both parts).</p>
       )}
-      {status && status !== 'offline' && !status.ready && (
+      {!WEB && status && status !== 'offline' && !status.ready && (
         <p className="warning-text">
           Photo reading needs an API key, which isn’t set up yet: a free Google Gemini key or an Anthropic Claude key. Copy{' '}
           <code>.env.example</code> to <code>.env</code>, paste your key, and restart <code>npm run dev</code>. See “Reading photos” in README.md.
@@ -385,3 +385,47 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
     </section>
   );
 }
+
+/** Website version: the reader is chosen and paid for by the person using it (their own key). */
+function webStatus() {
+  const provider = getProvider();
+  const ready = !!getKey(provider);
+  return provider === 'claude'
+    ? { provider, ready, model: CLAUDE_MODEL, note: 'Your Claude key is used straight from this browser.' }
+    : { provider, ready, model: GEMINI_MODELS[0], note: 'Google Gemini free tier, with your own key: no charge, but Google says free-tier content is used to improve its products.' };
+}
+
+function ReaderKey({ onSaved }: { onSaved: () => void }) {
+  const [provider, setProvider] = useState<BrowserProvider>(getProvider());
+  const [key, setKey] = useState(getKey(provider));
+  const [open, setOpen] = useState(!getKey(getProvider()));
+  const [saved, setSaved] = useState<string>();
+  const has = !!getKey(getProvider());
+  return (
+    <details className="reader-key" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary>🔑 Reading key {has ? `— ${getProvider() === 'claude' ? 'Claude' : 'Gemini'} key saved on this device` : '— needed to read photos'}</summary>
+      <p className="small">
+        To read photos and PDFs here, use your own key. It is kept only in this browser, and your pictures go straight to the
+        reader you choose — not to Tosingwell or anyone else.
+      </p>
+      <div className="row">
+        <label><input type="radio" checked={provider === 'gemini'} onChange={() => { setProvider('gemini'); setKey(getKey('gemini')); }} /> Google Gemini — free</label>
+        <label><input type="radio" checked={provider === 'claude'} onChange={() => { setProvider('claude'); setKey(getKey('claude')); }} /> Anthropic Claude — paid, more accurate</label>
+      </div>
+      <p className="muted small">
+        {provider === 'gemini' ? (
+          <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a> (sign in with Google → Create API key → copy). Free, with a daily limit; Google may use free-tier pictures to improve its products. It makes more mistakes on four-part music — check every bar.</>
+        ) : (
+          <>Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">console.anthropic.com</a> (add a payment card, then API keys → Create key). About 5–30 cents per page, charged to your own account.</>
+        )}
+      </p>
+      <div className="row">
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={provider === 'gemini' ? 'Paste your Gemini key (starts with AIza…)' : 'Paste your Claude key (starts with sk-ant-…)'} aria-label="Reading key" style={{ flex: 1, minWidth: 220 }} autoComplete="off" />
+        <button className="primary" onClick={() => { const ok = saveReader(provider, key); setSaved(ok ? (key ? 'Saved on this device.' : 'Key removed.') : 'This browser would not save it (private browsing?).'); onSaved(); if (ok && key) setOpen(false); }}>Save</button>
+        {key && <button onClick={() => { setKey(''); saveReader(provider, ''); setSaved('Key removed from this device.'); onSaved(); }}>Remove</button>}
+      </div>
+      {saved && <p className="ok small">{saved}</p>}
+    </details>
+  );
+}
+
