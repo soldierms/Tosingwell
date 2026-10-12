@@ -22,7 +22,7 @@ import { editNote, findEvent, type NoteEdit } from '../../shared/edit/editNote';
 import type { Flag } from '../../shared/model/types';
 import type { PreparedImage } from './vision/prepareImage';
 import { FileBar } from './components/FileBar';
-import { downloadText, loadDraft, looksLike, musicXmlFileName, saveDraft, scoreFileName } from './storage/library';
+import { downloadText, loadDraft, looksLike, musicXmlFileName, saveDraft, saveScore, scoreFileName } from './storage/library';
 import { exportMusicXml } from '../../shared/musicxml/export';
 
 type Format = 'solfa' | 'staff';
@@ -112,7 +112,8 @@ export function App() {
       history.replaceState(null, '', location.pathname + location.search);
       if (!song) return setNotice('This song link is damaged or incomplete — ask for it to be sent again.');
       const title = song.text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? 'the song';
-      startFresh(song.format, song.text, `Opened “${title}” from a shared link. Press 💾 Save to keep it in My scores. ↶ Undo brings back what you had before.`);
+      const kept = saveScore(title, song.format, song.text);
+      startFresh(song.format, song.text, `Opened “${title}” from a shared link${kept ? ' and saved it in 📚 My scores' : ''}. ↶ Undo brings back what you had before.`);
     };
     void open();
     window.addEventListener('hashchange', open);
@@ -137,7 +138,9 @@ export function App() {
         const t = r?.ok ? await r.text() : '';
         if (!t.includes('Title:')) continue; // a missing file comes back as the app page
         replace(f, t);
-        setNotice(`Opened “${t.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? name}” from the link. Press 💾 Save to keep it in My scores.`);
+        const title = t.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? name;
+        const kept = saveScore(title, f, t);
+        setNotice(`Opened “${title}” from the link${kept ? ' and saved it in 📚 My scores' : ''}.`);
         return;
       }
       setNotice(`No score called “${name}” was found on this computer.`);
