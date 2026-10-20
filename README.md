@@ -25,7 +25,7 @@ A music application for reading, converting, playing and printing choral scores 
 ## Use it online
 
 **https://soldierms.github.io/Tosingwell/** works on any phone or computer: type or open a score file, play each
-part, print, make rehearsal recordings, tap in sol-fa with the 🎹 keypad, and send songs as 🔗 links. To read photos
+part (on piano, or with a 🎤 computer singer that sings the vowels of the words), print, make rehearsal recordings, tap in sol-fa with the 🎹 keypad, and send songs as 🔗 links. To read photos
 there, each person adds their own key once (free Google Gemini, or paid Claude) under “Reading key”.
 
 ## Try it

@@ -104,6 +104,14 @@ notes warned) · ties to different notes · repeats/endings/D.C./D.S./Coda/Fine 
   `OfflineAudioContext` with the loaded Salamander buffers (Tone.Offline hung the page); `audio/encode.ts` normalises to
   90% peak and encodes 128 kbps MP3 with `@breezystack/lamejs` (LGPL). Follows the play order, speed and count-in.
   Share = Web Share API with files (phone share sheet → WhatsApp); Download otherwise.
+- Singing voice (owner asked 2026-10-20; chose "sings the vowels" over a choir 'aah' or a paid service): Sound = Piano /
+  Singing voice / Voice + piano (piano at 35%), remembered in `tosingwell.instrument`. `ScheduledNote.lyric` = the
+  syllable (verse = repeat pass if that verse exists, else 1); `shared/playback/vowels.ts` → vowel (a e ɛ i o ɔ u, or a
+  hum for "N") + onset (hum for m/n, breath for s/h/f…); melisma/no words keep the part's last vowel or sing "ah".
+  `app/src/audio/voice.ts` = formant synthesis (2 detuned saws + delayed vibrato → 3 band-pass formants; S/A ×1.17,
+  F1 ≥ 1.1×pitch), loudness evened out per note from the overtones. Recordings build every note (piano too) ~2 s
+  ahead with `OfflineAudioContext.suspend`, and finished notes disconnect themselves — otherwise the whole Mass took
+  minutes (now ~2 s piano, ~8 s voice, plus ~20 s MP3 encoding).
 
 ## Printing and PDF (Phase 3)
 

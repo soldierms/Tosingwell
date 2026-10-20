@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Score, VoiceId } from '../../../shared/model/types';
 import { describePlayOrder, expandPlayOrder, type PlayStep } from '../../../shared/playback/expand';
 import { buildSchedule, tempoValue } from '../../../shared/playback/schedule';
-import type { ScorePlayer } from '../audio/player';
+import type { Instrument, ScorePlayer } from '../audio/player';
 import { RehearsalRecordings } from './RehearsalRecordings';
 
 export interface FollowState {
@@ -32,6 +32,21 @@ const getPlayer = () =>
   }));
 const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th'];
 
+const INSTRUMENT_KEY = 'tosingwell.instrument';
+const savedInstrument = (): Instrument => {
+  try {
+    const v = localStorage.getItem(INSTRUMENT_KEY);
+    return v === 'voice' || v === 'both' ? v : 'piano';
+  } catch {
+    return 'piano';
+  }
+};
+const INSTRUMENTS: { value: Instrument; label: string }[] = [
+  { value: 'piano', label: '🎹 Piano' },
+  { value: 'voice', label: '🎤 Singing voice' },
+  { value: 'both', label: '🎤 + 🎹 Voice and piano' },
+];
+
 const MIN_BPM = 20;
 const MAX_BPM = 240;
 
@@ -48,6 +63,16 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
   const [mute, setMute] = useState<Set<VoiceId>>(new Set());
   const [position, setPosition] = useState<string>('');
   const [sound, setSound] = useState<string>();
+  const [instrument, setInstrumentState] = useState<Instrument>(savedInstrument);
+  const setInstrument = (v: Instrument) => {
+    setInstrumentState(v);
+    try {
+      localStorage.setItem(INSTRUMENT_KEY, v);
+    } catch {
+      // private browsing: just not remembered
+    }
+  };
+  const hasWords = score.parts.some((p) => p.measures.some((m) => m.events.some((e) => e.lyrics?.length)));
 
   const { steps, flags } = useMemo(() => expandPlayOrder(score.measures, { repeatsAfterJump }), [score.measures, repeatsAfterJump]);
   const orderText = useMemo(() => describePlayOrder(steps, score.measures), [steps, score.measures]);
@@ -94,12 +119,14 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
     const order = loop ? loopSteps() : steps;
     const schedule = buildSchedule(score, order, { speed: speed / 100 });
     const player = await getPlayer();
+    player.instrument = instrument;
     const loadedSound = await player.load();
     for (const p of score.parts) {
       player.setSolo(p.id, solo.has(p.id));
       player.setMute(p.id, mute.has(p.id));
     }
-    setSound(loadedSound === 'piano' ? 'Piano' : 'Simple synth (piano sounds could not be loaded — check the internet connection)');
+    const pianoName = loadedSound === 'piano' ? 'Piano' : 'Simple synth (piano sounds could not be loaded — check the internet connection)';
+    setSound(instrument === 'voice' ? 'Singing voice' : instrument === 'both' ? `Singing voice with ${pianoName.toLowerCase()}` : pianoName);
     let lastKey = '';
     let lastBar = -1;
     await player.play(
@@ -232,6 +259,20 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
       </div>
 
       <div className="row">
+        <span className="label">Sound:</span>
+        {INSTRUMENTS.map((i) => (
+          <button key={i.value} className={instrument === i.value ? 'on' : ''} onClick={() => setInstrument(i.value)} disabled={status !== 'stopped'}>
+            {i.label}
+          </button>
+        ))}
+      </div>
+      {instrument !== 'piano' && (
+        <p className="muted small">
+          The computer singer sings each note on the vowel of its word (Nya-me → “a … e”), so you hear the shape of the words. It is a
+          computer voice, not a real singer.{!hasWords && ' This score has no words yet, so it sings “ah”.'}
+        </p>
+      )}
+      <div className="row">
         <label className="speed">
           Speed {Math.round(speed)}%{' '}
           <input type="range" min={25} max={Math.max(150, Math.ceil(speed))} step={5} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={status !== 'stopped'} />
@@ -267,7 +308,7 @@ export function PlayerPanel({ score, errorCount, onFollow }: Props) {
         <span className="muted small">(plays these bars over and over, as written)</span>
       </div>
       {sound && <p className="muted small">Sound: {sound}</p>}
-      <RehearsalRecordings score={score} steps={steps} speed={speed} countIn={countIn} getPlayer={getPlayer} />
+      <RehearsalRecordings score={score} steps={steps} speed={speed} countIn={countIn} instrument={instrument} getPlayer={getPlayer} />
     </section>
   );
 }

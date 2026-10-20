@@ -5,6 +5,13 @@
 import * as Tone from 'tone';
 import type { VoiceId } from '../../../shared/model/types';
 import type { Schedule } from '../../../shared/playback/schedule';
+import { singingSounds } from '../../../shared/playback/vowels';
+import { sing } from './voice';
+
+/** What plays the notes: the piano, the computer singer (sings the vowels of the words), or both. */
+export type Instrument = 'piano' | 'voice' | 'both';
+/** Piano loudness when it plays along with the singer. */
+const PIANO_UNDER_VOICE = 0.35;
 
 /** Free Salamander Grand Piano samples, hosted by the Tone.js project. */
 const SAMPLE_BASE = 'https://tonejs.github.io/audio/salamander/';
@@ -23,11 +30,14 @@ export interface PlayOptions {
   loop: boolean;
 }
 
-type Instrument = Tone.Sampler | Tone.PolySynth;
+type PianoSound = Tone.Sampler | Tone.PolySynth;
 
 export class ScorePlayer {
   private channels = new Map<VoiceId, Tone.Channel>();
-  private instruments = new Map<VoiceId, Instrument>();
+  private instruments = new Map<VoiceId, PianoSound>();
+  private singers = new Map<VoiceId, Tone.Gain>();
+  private singing = new Set<() => void>();
+  instrument: Instrument = 'piano';
   private click?: Tone.Synth;
   private loading?: Promise<'piano' | 'synth'>;
   private buffers?: Tone.ToneAudioBuffers;
@@ -37,7 +47,11 @@ export class ScorePlayer {
   /** Load the piano sounds (once). Falls back to a simple synth if they can't be fetched. */
   load(): Promise<'piano' | 'synth'> {
     this.loading ??= new Promise((resolve) => {
-      for (const v of VOICES) this.channels.set(v, new Tone.Channel({ volume: -8 }).toDestination());
+      for (const v of VOICES) {
+        const ch = new Tone.Channel({ volume: -8 }).toDestination();
+        this.channels.set(v, ch);
+        this.singers.set(v, new Tone.Gain(1).connect(ch));
+      }
       this.click = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 }, volume: -10 }).toDestination();
       const urls: Record<string, string> = {};
       for (const n of SAMPLE_NOTES) urls[n] = `${n.replace('#', 's')}.mp3`;
@@ -99,12 +113,26 @@ export class ScorePlayer {
         transport.schedule((t) => this.click?.triggerAttackRelease(i === 0 ? 'C6' : 'G5', 0.05, t), i * beat);
       }
     }
+    const piano = this.instrument === 'voice' ? 0 : this.instrument === 'both' ? PIANO_UNDER_VOICE : 1;
+    const sounds = this.instrument === 'piano' ? undefined : singingSounds(schedule.notes);
+    const raw = Tone.getContext().rawContext as unknown as BaseAudioContext;
     for (const n of schedule.notes) {
       if (n.rest || !n.midi.length) continue;
       const inst = this.instruments.get(n.part);
       const freqs = n.midi.map((m) => Tone.Frequency(m, 'midi').toFrequency());
       const dur = Math.max(0.05, n.end - n.start);
-      transport.schedule((t) => inst?.triggerAttackRelease(freqs, dur, t, n.velocity), offset + n.start);
+      if (piano) transport.schedule((t) => inst?.triggerAttackRelease(freqs, dur, t, n.velocity * piano), offset + n.start);
+      const sound = sounds?.get(n);
+      const out = this.singers.get(n.part)?.input as unknown as AudioNode | undefined;
+      if (sound && out) {
+        transport.schedule((t) => {
+          for (const freq of freqs) {
+            const stop = sing(raw, out, { part: n.part, freq, start: t, dur, gain: n.velocity, ...sound });
+            this.singing.add(stop);
+            setTimeout(() => this.singing.delete(stop), (dur + 1) * 1000 + Math.max(0, t - raw.currentTime) * 1000);
+          }
+        }, offset + n.start);
+      }
     }
 
     const end = offset + schedule.duration;
@@ -127,9 +155,15 @@ export class ScorePlayer {
     transport.start('+0.1');
   }
 
+  private silenceSinger() {
+    for (const stop of this.singing) stop();
+    this.singing.clear();
+  }
+
   pause() {
     Tone.getTransport().pause();
     for (const i of this.instruments.values()) i.releaseAll();
+    this.silenceSinger();
   }
 
   resume() {
@@ -148,6 +182,7 @@ export class ScorePlayer {
     transport.cancel(0);
     transport.loop = false;
     for (const i of this.instruments.values()) i.releaseAll();
+    this.silenceSinger();
   }
 
   /**
@@ -175,20 +210,43 @@ export class ScorePlayer {
       o.connect(g).connect(master); o.start(t); o.stop(t + Math.max(attack, dur) + release + 0.05);
     };
     if (opts.countIn) for (let i = 0; i < opts.beatsPerBar; i++) tone(i * beat, i === 0 ? 1046.5 : 784, 0.03, 0.5, 'triangle', 0.001, 0.08);
+    const piano = this.instrument === 'voice' ? 0 : this.instrument === 'both' ? PIANO_UNDER_VOICE : 1;
+    const sounds = this.instrument === 'piano' ? undefined : singingSounds(schedule.notes);
+    // Each note is built just before it is needed while recording (a few seconds ahead): building all of
+    // them at the start makes the browser work on thousands of silent sounds and takes minutes.
+    const jobs: { start: number; build: () => void }[] = [];
     for (const n of schedule.notes) {
       const vg = opts.gains[n.part] ?? 0;
       if (n.rest || !n.midi.length || !(vg > 0)) continue;
       const t = offset + n.start;
       const dur = Math.max(0.05, n.end - n.start);
+      const sound = sounds?.get(n);
+      if (sound) for (const m of n.midi) jobs.push({ start: t, build: () => sing(ctx, master, { part: n.part, freq: 440 * 2 ** ((m - 69) / 12), start: t, dur, gain: vg * n.velocity, ...sound }) });
+      if (!piano) continue;
       for (const m of n.midi) {
-        const gain = vg * n.velocity;
-        if (!samples.length) { tone(t, 440 * 2 ** ((m - 69) / 12), dur, gain * 0.5, 'triangle', 0.02, 0.4); continue; }
+        const gain = vg * n.velocity * piano;
+        if (!samples.length) { jobs.push({ start: t, build: () => tone(t, 440 * 2 ** ((m - 69) / 12), dur, gain * 0.5, 'triangle', 0.02, 0.4) }); continue; }
         const s = samples.reduce((a, b) => (Math.abs(b.midi - m) < Math.abs(a.midi - m) ? b : a));
-        const src = ctx.createBufferSource(); src.buffer = s.buffer; src.playbackRate.value = 2 ** ((m - s.midi) / 12);
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(gain, t); g.gain.setValueAtTime(gain, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1);
-        src.connect(g).connect(master); src.start(t); src.stop(t + dur + 1.05);
+        jobs.push({ start: t, build: () => {
+          const src = ctx.createBufferSource(); src.buffer = s.buffer; src.playbackRate.value = 2 ** ((m - s.midi) / 12);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(gain, t); g.gain.setValueAtTime(gain, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1);
+          src.connect(g).connect(master); src.start(t); src.stop(t + dur + 1.05);
+          src.onended = () => { src.disconnect(); g.disconnect(); };
+        } });
       }
+    }
+    const AHEAD = 2;
+    const chunks = new Map<number, (() => void)[]>();
+    for (const j of jobs) {
+      const c = Math.floor(j.start / AHEAD);
+      if (!chunks.has(c)) chunks.set(c, []);
+      chunks.get(c)!.push(j.build);
+    }
+    for (const [c, list] of chunks) {
+      const build = () => list.forEach((b) => b());
+      if (c === 0) build();
+      else ctx.suspend((c * AHEAD * rate - ((c * AHEAD * rate) % 128) - 128 * 4) / rate).then(() => { build(); ctx.resume(); });
     }
     return ctx.startRendering();
   }

@@ -7,7 +7,7 @@ import type { Score, VoiceId } from '../../../shared/model/types';
 import { VOICE_NAMES } from '../../../shared/model/types';
 import type { PlayStep } from '../../../shared/playback/expand';
 import { buildSchedule } from '../../../shared/playback/schedule';
-import type { ScorePlayer } from '../audio/player';
+import type { Instrument, ScorePlayer } from '../audio/player';
 
 type Kind = 'full' | 'loud' | 'alone' | 'without';
 
@@ -30,12 +30,13 @@ interface Props {
   steps: PlayStep[];
   speed: number;
   countIn: boolean;
+  instrument: Instrument;
   getPlayer: () => Promise<ScorePlayer>;
 }
 
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim() || 'Song';
 
-export function RehearsalRecordings({ score, steps, speed, countIn, getPlayer }: Props) {
+export function RehearsalRecordings({ score, steps, speed, countIn, instrument, getPlayer }: Props) {
   const [kind, setKind] = useState<Kind>('loud');
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<string>();
@@ -49,7 +50,7 @@ export function RehearsalRecordings({ score, steps, speed, countIn, getPlayer }:
       old.forEach((r) => URL.revokeObjectURL(r.url));
       return [];
     });
-  }, [score]);
+  }, [score, instrument]);
 
   const mixes = (): { name: string; gains: Record<VoiceId, number> }[] => {
     const g = (f: (v: VoiceId) => number) => Object.fromEntries((['S', 'A', 'T', 'B'] as VoiceId[]).map((v) => [v, voices.includes(v) ? f(v) : 0])) as Record<VoiceId, number>;
@@ -67,6 +68,7 @@ export function RehearsalRecordings({ score, steps, speed, countIn, getPlayer }:
     try {
       setBusy('Loading the piano sounds…');
       const player = await getPlayer();
+      player.instrument = instrument;
       await player.load();
       const schedule = buildSchedule(score, steps, { speed: speed / 100 });
       const { toMp3 } = await import('../audio/encode');
@@ -78,7 +80,7 @@ export function RehearsalRecordings({ score, steps, speed, countIn, getPlayer }:
         const audio = await player.render(schedule, { countIn, beatsPerBar: score.measures[steps[0]?.measure ?? 0]?.time.beats ?? 4, gains: m.gains });
         setBusy(`Making the MP3 for “${m.name}” (${i + 1} of ${list.length})…`);
         const blob = await toMp3(audio);
-        const tempo = speed === 100 ? '' : ` (${Math.round(speed)}% speed)`;
+        const tempo = (speed === 100 ? '' : ` (${Math.round(speed)}% speed)`) + (instrument === 'piano' ? '' : ' (sung)');
         const file = new File([blob], `${title} - ${m.name}${tempo}.mp3`, { type: 'audio/mpeg' });
         out.push({ name: m.name, url: URL.createObjectURL(blob), file, seconds: audio.duration });
       }
@@ -121,7 +123,7 @@ export function RehearsalRecordings({ score, steps, speed, countIn, getPlayer }:
     <div className="rehearsal">
       <h3>🎙 Rehearsal recordings</h3>
       <p className="muted small">
-        Make MP3 files of this song for your choir to practise with at home. They follow the play order above, the speed
+        Make MP3 files of this song for your choir to practise with at home. They follow the play order above, the sound, the speed
         {countIn ? ' and the count-in' : ''} you have set.
       </p>
       <div className="row">

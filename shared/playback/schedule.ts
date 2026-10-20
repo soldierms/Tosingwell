@@ -26,6 +26,8 @@ export interface ScheduledNote {
   velocity: number; // 0..1
   rest?: boolean;
   grace?: boolean;
+  /** The syllable sung on this note (the verse matching this time through, else verse 1), for the singing voice. */
+  lyric?: string;
 }
 
 export interface ScheduledBar {
@@ -177,6 +179,9 @@ export function buildSchedule(score: Score, order: PlayStep[], opts: ScheduleOpt
 
   // 4) Notes, part by part along the play path.
   const notes: ScheduledNote[] = [];
+  const verses = new Set(score.parts.flatMap((p) => p.measures.flatMap((m) => m.events.flatMap((e) => e.lyrics?.map((l) => l.verse) ?? []))));
+  const lyricFor = (ev: { lyrics?: { verse: number; text: string }[] }, pass: number) =>
+    ev.lyrics?.find((l) => l.verse === (verses.has(pass) ? pass : 1))?.text;
   for (const part of score.parts) {
     let dyn = DEFAULT_VELOCITY;
     let slur = 0;
@@ -225,7 +230,7 @@ export function buildSchedule(score: Score, order: PlayStep[], opts: ScheduleOpt
             const len = t1 - t0;
             let soundLen = len * (slur > 0 || ev.articulations?.includes('tenuto') ? 1 : 0.94);
             if (ev.articulations?.includes('staccato')) soundLen = len * 0.45;
-            const n: ScheduledNote = { part: part.id, eventId: ev.id, step: k, midi: pitches, start: t0, end: t0 + soundLen, writtenEnd: t1, velocity: Math.min(1, vel) };
+            const n: ScheduledNote = { part: part.id, eventId: ev.id, step: k, midi: pitches, start: t0, end: t0 + soundLen, writtenEnd: t1, velocity: Math.min(1, vel), lyric: lyricFor(ev, st.pass) };
             notes.push(n);
             partNotes.push(n);
             tiedFrom = undefined;
