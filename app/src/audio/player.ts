@@ -7,15 +7,13 @@ import type { VoiceId } from '../../../shared/model/types';
 import type { Schedule } from '../../../shared/playback/schedule';
 import { singingSounds } from '../../../shared/playback/vowels';
 import { sing } from './voice';
+import { SAMPLE_BASE, SAMPLE_NOTES, sampleFile } from './samples';
 
 /** What plays the notes: the piano, the computer singer (sings the vowels of the words), or both. */
 export type Instrument = 'piano' | 'voice' | 'both';
 /** Piano loudness when it plays along with the singer. */
 const PIANO_UNDER_VOICE = 0.35;
 
-/** Free Salamander Grand Piano samples, hosted by the Tone.js project. */
-const SAMPLE_BASE = 'https://tonejs.github.io/audio/salamander/';
-const SAMPLE_NOTES = ['A0', 'C1', 'D#1', 'F#1', 'A1', 'C2', 'D#2', 'F#2', 'A2', 'C3', 'D#3', 'F#3', 'A3', 'C4', 'D#4', 'F#4', 'A4', 'C5', 'D#5', 'F#5', 'A5', 'C6', 'D#6', 'F#6', 'A6', 'C7', 'D#7', 'F#7', 'A7', 'C8'];
 const VOICES: VoiceId[] = ['S', 'A', 'T', 'B'];
 
 export interface PlayCallbacks {
@@ -54,7 +52,7 @@ export class ScorePlayer {
       }
       this.click = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 }, volume: -10 }).toDestination();
       const urls: Record<string, string> = {};
-      for (const n of SAMPLE_NOTES) urls[n] = `${n.replace('#', 's')}.mp3`;
+      for (const n of SAMPLE_NOTES) urls[n] = sampleFile(n);
       const useSynth = () => {
         for (const v of VOICES) {
           const synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.02, decay: 0.2, sustain: 0.5, release: 0.4 } });

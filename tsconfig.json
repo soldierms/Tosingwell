@@ -27,6 +27,7 @@
     "server",
     "scripts",
     "vite.config.ts",
+    "vite-offline.ts",
     "vitest.config.ts"
   ]
 }

@@ -28,6 +28,10 @@ A music application for reading, converting, playing and printing choral scores 
 part (on piano, or with a 🎤 computer singer that sings the vowels of the words), print, make rehearsal recordings, tap in sol-fa with the 🎹 keypad, and send songs as 🔗 links. To read photos
 there, each person adds their own key once (free Google Gemini, or paid Claude) under “Reading key”.
 
+**Works without internet:** open the website once with internet and it saves itself (and the piano sounds) on
+your phone or computer. After that it opens and works offline — saved songs, playing, converting, printing and
+rehearsal recordings. Only reading photos needs internet.
+
 ## Try it
 
 ```bash

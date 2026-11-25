@@ -218,7 +218,16 @@ How it works:
   well-formedness and that every bar's durations add up.
 - Lazy loading: Tone.js (`audio/player`) on first Play, `PrintDialog` on first Print.
 - Phone: sticky top bar with jump links (#type #photo #play #score), larger touch targets, web app manifest +
-  icons in `app/public/` (Add to Home Screen; no offline service worker).
+  icons in `app/public/` (Add to Home Screen).
+- Offline mode (owner asked 2026-11-24): `vite-offline.ts` (build-only plugin) fills `app/sw-template.js` with every
+  built file + public files (never `_private`) + the 30 Salamander URLs (`app/src/audio/samples.ts`, shared with the
+  player) and emits `sw.js`; `main.tsx` registers it in production. Pages: network first, saved copy if offline or
+  slower than 4 s (so updates arrive); app files and piano sounds: saved copy first. Cache `tosingwell-app-<hash>`
+  (hash of file names + public files + template; old ones deleted on activate), `tosingwell-sounds-v1` kept across
+  versions. `caches.match` needs `ignoreVary` (servers send Vary: Origin; module scripts carry Origin) — without it the
+  page is blank offline. `useOnline` (app/src/offline.ts) shows a "No internet" banner; photo reading says it needs
+  internet. Tested: build, visit, stop the server, reload → plays with piano, records, prints. Not in `npm run dev`
+  (and service workers need https or localhost, so the Mac's Wi-Fi address has none).
 
 ## Website (GitHub Pages)
 
@@ -265,5 +274,6 @@ How it works:
   measured — needs the owner's API key, then `npm run test:vision`.
 - Phase 5 (save/open, MusicXML export, undo, mobile layout, lazy loading, home-screen icon): **done**.
 - Opening MusicXML files (.musicxml/.xml/.mxl): **done** (2026-11-24).
-- Ideas not built: opening MIDI files, offline mode (service worker), more verses in the sol-fa view, voice-like
+- Offline mode on the website: **done** (2026-11-24).
+- Ideas not built: opening MIDI files, more verses in the sol-fa view, voice-like
   playback sound.

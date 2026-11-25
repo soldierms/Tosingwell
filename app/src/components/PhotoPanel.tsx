@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ScoreReading } from '../../../shared/vision/schema';
+import { useOnline } from '../offline';
 import { CLAUDE_MODEL, GEMINI_MODELS, getKey, getProvider, readInBrowser, saveReader, type BrowserProvider } from '../vision/browserReader';
 import { MAX_EDGE_AUDIVERIS, prepareImage, splitPicture, PHOTO_TIPS, type PreparedImage } from '../vision/prepareImage';
 
@@ -55,6 +56,7 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
   const [busy, setBusy] = useState(false);
   const [preparing, setPreparing] = useState<string>();
   const [seconds, setSeconds] = useState(0);
+  const online = useOnline();
   const [waitUntil, setWaitUntil] = useState<number>();
   const [error, setError] = useState<string>();
   const [last, setLast] = useState<string>();
@@ -286,6 +288,9 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
         </p>
       )}
       {WEB && <ReaderKey onSaved={() => setStatus(webStatus())} />}
+      {WEB && !online && (
+        <p className="warning-text">📴 Reading photos needs internet (the reader is on Google’s or Anthropic’s computers). You can still choose your pictures now and press Read when you are back online.</p>
+      )}
       {status === 'offline' && !WEB && (
         <p className="warning-text">The photo-reading server is not running. Start the app with <code>npm run dev</code> (it starts both parts).</p>
       )}

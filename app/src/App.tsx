@@ -25,6 +25,7 @@ import { FileBar } from './components/FileBar';
 import { downloadText, loadDraft, looksLike, musicXmlFileName, saveDraft, saveScore, scoreFileName } from './storage/library';
 import { exportMusicXml } from '../../shared/musicxml/export';
 import { decodeSongHash, findSongLink } from '../../shared/share/link';
+import { useOnline } from './offline';
 
 type Format = 'solfa' | 'staff';
 type View = 'staff' | 'solfa' | 'both';
@@ -64,6 +65,7 @@ export function App() {
     setTimeout(() => document.getElementById('photo')?.scrollIntoView({ behavior: 'smooth' }), 50);
   };
   const [notice, setNotice] = useState<string | undefined>(DRAFT ? 'Your last work was restored.' : undefined);
+  const online = useOnline();
   // Undo / redo of whole-score changes (note fixes, photo readings, opening files, examples).
   const [undoStack, setUndoStack] = useState<{ format: Format; text: string }[]>([]);
   const [redoStack, setRedoStack] = useState<{ format: Format; text: string }[]>([]);
@@ -394,6 +396,11 @@ export function App() {
         </nav>
       </header>
       {dragging && <div className="drop-overlay">Drop a picture of a score, or a .txt score file</div>}
+      {!online && (
+        <p className="notice offline" role="status">
+          📴 No internet. Your saved songs, playing, converting, printing and recordings still work. Reading photos needs internet.
+        </p>
+      )}
       {notice && (
         <p className="notice" role="status">
           {notice} <button className="link" onClick={() => setNotice(undefined)}>OK</button>
