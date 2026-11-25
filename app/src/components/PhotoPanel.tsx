@@ -183,9 +183,40 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
       setTimeout(() => { setWaitUntil(undefined); resolve(); }, ms);
     });
 
+  /** Two pieces are read at the same time, except by Audiveris (a heavy program on this computer). */
+  const readsTwo = WEB || !(typeof status === 'object' && status.provider === 'audiveris');
+
+  /** Read pages[k], waiting and trying again by itself when the reader is busy. undefined = stopped or gave up. */
+  const readWithRetry = async (k: number): Promise<ReadResponse | undefined> => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (stopRef.current) return undefined;
+      try {
+        return await readOne(pages[k]);
+      } catch (e) {
+        const st = (e as { status?: number }).status;
+        const msg = e instanceof Error ? e.message : String(e);
+        // Per-minute free limit: wait a minute and carry on by itself.
+        if (st === 429 && /minute/i.test(msg) && attempt < 3) {
+          setLast(`Free reading limit for this minute reached (page ${k + 1}). Waiting a minute, then carrying on…`);
+          await sleepUntil(65_000);
+          continue;
+        }
+        // Google busy (503): wait two minutes and try again by itself, up to 3 times.
+        if (st === 503 && attempt < 3) {
+          setLast(`Google's servers are busy (page ${k + 1}). Waiting 2 minutes, then trying again by itself (try ${attempt + 2} of 4)… You can leave this page open.`);
+          await sleepUntil(120_000);
+          continue;
+        }
+        throw e;
+      }
+    }
+    return undefined;
+  };
+
   /**
-   * Read pages[from…] in order. The first page starts a new song unless `appendFirst`;
-   * every later page is added after the one before it.
+   * Read pages[from…]. The first page starts a new song unless `appendFirst`; every later page is added after the
+   * one before it. Two pages (or the two halves of a page) are read AT THE SAME TIME to halve the wait, but each
+   * is added to the song strictly in page order. Audiveris (a heavy program on this computer) reads one at a time.
    */
   const readAll = async (appendFirst: boolean, from = done) => {
     stopRef.current = false;
@@ -194,34 +225,20 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
     let costSum = 0;
     let model = '';
     let i = from;
+    const parallel = readsTwo ? 2 : 1;
+    const started = new Map<number, Promise<ReadResponse | undefined>>();
+    const start = (k: number) => {
+      if (k >= pages.length || started.has(k)) return;
+      const p = readWithRetry(k);
+      p.catch(() => {}); // a read-ahead page's error is reported when its turn comes (or not at all if we stop first)
+      started.set(k, p);
+    };
     try {
       while (i < pages.length) {
         if (stopRef.current) break;
-        let res: ReadResponse | undefined;
-        for (let attempt = 0; attempt < 4 && !res; attempt++) {
-          try {
-            res = await readOne(pages[i]);
-          } catch (e) {
-            const st = (e as { status?: number }).status;
-            const msg = e instanceof Error ? e.message : String(e);
-            // Per-minute free limit: wait a minute and carry on by itself.
-            if (st === 429 && /minute/i.test(msg) && attempt < 3) {
-              setLast(`Free reading limit for this minute reached after page ${i}. Waiting a minute, then carrying on…`);
-              await sleepUntil(65_000);
-              if (stopRef.current) break;
-              continue;
-            }
-            // Google busy (503): wait two minutes and try again by itself, up to 3 times.
-            if (st === 503 && attempt < 3) {
-              setLast(`Google's servers are busy (page ${i + 1}). Waiting 2 minutes, then trying again by itself (try ${attempt + 2} of 4)… You can leave this page open.`);
-              await sleepUntil(120_000);
-              if (stopRef.current) break;
-              continue;
-            }
-            throw e;
-          }
-        }
-        if (!res) break;
+        for (let k = i; k < i + parallel; k++) start(k);
+        const res = await started.get(i)!;
+        if (!res || stopRef.current) break;
         markSeen(res.readingId);
         onRead(res, pages[i], i === 0 && !appendFirst ? 'new' : 'append');
         costSum += res.usage.costUsd ?? 0;
@@ -345,7 +362,9 @@ export function PhotoPanel({ canAppend, onRead, incoming }: Props) {
             <p className="position">
               {waitUntil
                 ? `Waiting before trying again… ${Math.max(0, Math.ceil((waitUntil - now) / 1000))}s`
-                : `Reading page ${done + 1} of ${pages.length}… ${seconds}s (each page usually takes 1–3 minutes)`}
+                : readsTwo && done + 1 < pages.length
+                  ? `Reading parts ${done + 1} and ${done + 2} of ${pages.length} at the same time… ${seconds}s (usually 1–3 minutes)`
+                  : `Reading part ${done + 1} of ${pages.length}… ${seconds}s (usually 1–3 minutes)`}
             </p>
           )}
         </div>
