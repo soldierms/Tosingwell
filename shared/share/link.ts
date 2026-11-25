@@ -23,6 +23,22 @@ export async function encodeSongHash(format: LinkFormat, text: string): Promise<
   return `#song=${format === 'solfa' ? 's' : 't'}.${toB64Url(packed)}`;
 }
 
+/**
+ * Looks for a song link in text typed or pasted into the app (people often paste the link into the
+ * score box instead of the address bar).
+ * - `song`: the text holds a song link — `hash` is its "#song=…" part, ready for decodeSongHash.
+ * - `address`: the text is only a web address with no song in it (for example just the website's address,
+ *   or a link that lost its "#song=" part when copied).
+ * - undefined: ordinary score text.
+ */
+export function findSongLink(text: string): { kind: 'song'; hash: string } | { kind: 'address' } | undefined {
+  const song = /#song=[st]\.[A-Za-z0-9_-]*/.exec(text);
+  if (song) return { kind: 'song', hash: song[0] };
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length && lines.every((l) => /^(https?:\/\/|www\.)\S+$/i.test(l))) return { kind: 'address' };
+  return undefined;
+}
+
 /** Reads a link made by encodeSongHash; undefined if the hash is not a song (or is damaged). */
 export async function decodeSongHash(hash: string): Promise<{ format: LinkFormat; text: string } | undefined> {
   const m = /^#?song=([st])\.([A-Za-z0-9_-]+)$/.exec(hash.trim());

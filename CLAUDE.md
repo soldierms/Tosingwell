@@ -233,7 +233,9 @@ How it works:
   `renderBar` and added after the part's last line (`appendBar`); every tapped note is beeped (WebAudio). Tests read the
   written text back with the parser.
 - Song links (`shared/share/link.ts`): 🔗 Share link packs the text (deflate-raw, base64url) into `#song=s.…`/`#song=t.…`
-  on the website URL; App opens it on load / hashchange and clears the hash.
+  on the website URL; App opens it on load / hashchange and clears the hash. A song link pasted or typed into the score
+  box, 📥 Paste or ⌘V on the page also opens the song (`findSongLink`, owner asked 2026-11-24: people paste the link
+  into the box instead of the address bar); a cut-off link or a bare web address gets a hint instead of parse errors.
 
 ## Folder map
 

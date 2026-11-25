@@ -24,6 +24,7 @@ import type { PreparedImage } from './vision/prepareImage';
 import { FileBar } from './components/FileBar';
 import { downloadText, loadDraft, looksLike, musicXmlFileName, saveDraft, saveScore, scoreFileName } from './storage/library';
 import { exportMusicXml } from '../../shared/musicxml/export';
+import { decodeSongHash, findSongLink } from '../../shared/share/link';
 
 type Format = 'solfa' | 'staff';
 type View = 'staff' | 'solfa' | 'both';
@@ -102,23 +103,52 @@ export function App() {
     setFormat(nextFormat);
     setText(nextText);
   };
+  /** Opens a shared song link's "#song=…" part (from the address bar, or pasted into the page). */
+  const openSong = async (hash: string, pasted: boolean) => {
+    const song = await decodeSongHash(hash);
+    if (!song) {
+      return setNotice(
+        pasted
+          ? 'That song link is incomplete — part of it was lost when it was copied. Copy the WHOLE link (it is one long line) and paste it again.'
+          : 'This song link is damaged or incomplete — ask for it to be sent again.',
+      );
+    }
+    const title = song.text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? 'the song';
+    const kept = saveScore(title, song.format, song.text);
+    startFresh(song.format, song.text, `Opened “${title}” from ${pasted ? 'the pasted' : 'a shared'} link${kept ? ' and saved it in 📚 My scores' : ''}. ↶ Undo brings back what you had before.`);
+  };
+  const openSongRef = useRef(openSong);
+  openSongRef.current = openSong;
+
+  /**
+   * Text pasted or typed as a whole score (the text box, 📥 Paste, ⌘V on the page). A song link opens the
+   * song instead of being read as music; a bare web address gets a hint instead of a page of errors.
+   * Returns true if it was handled here.
+   */
+  const handleLink = (t: string): boolean => {
+    const link = findSongLink(t);
+    if (link?.kind === 'song') {
+      void openSong(link.hash, true);
+      return true;
+    }
+    if (link?.kind === 'address') {
+      setNotice('That is a web address, not a song. A song link is one long line with “#song=” in it — copy the whole link and paste it here, or open the song file with 📂 Open file.');
+    }
+    return false;
+  };
+
   // A shared song link (#song=…): the whole score is inside the link. Open it, then tidy the address so a
   // reload does not throw away changes made since.
   useEffect(() => {
-    const open = async () => {
+    const open = () => {
       if (!location.hash.startsWith('#song=')) return;
-      const { decodeSongHash } = await import('../../shared/share/link');
-      const song = await decodeSongHash(location.hash);
+      const hash = location.hash;
       history.replaceState(null, '', location.pathname + location.search);
-      if (!song) return setNotice('This song link is damaged or incomplete — ask for it to be sent again.');
-      const title = song.text.match(/^Title:\s*(.+)$/m)?.[1]?.trim() ?? 'the song';
-      const kept = saveScore(title, song.format, song.text);
-      startFresh(song.format, song.text, `Opened “${title}” from a shared link${kept ? ' and saved it in 📚 My scores' : ''}. ↶ Undo brings back what you had before.`);
+      void openSongRef.current(hash, false);
     };
-    void open();
+    open();
     window.addEventListener('hashchange', open);
     return () => window.removeEventListener('hashchange', open);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ?score=NAME opens a score file kept on this computer in app/public/_private/ (not in git:
@@ -216,7 +246,10 @@ export function App() {
       const pics = files.filter((f) => f.type.startsWith('image/'));
       if (pics.length) { e.preventDefault(); takeImage(pics); return; }
       const t = e.clipboardData?.getData('text/plain') ?? '';
-      if (/^\s*[SATB]\s*:/m.test(t)) {
+      if (findSongLink(t)?.kind === 'song') {
+        e.preventDefault();
+        handleLink(t);
+      } else if (/^\s*[SATB]\s*:/m.test(t)) {
         e.preventDefault();
         startFresh(looksLike(t) ?? 'solfa', t, 'Pasted the score. ↶ Undo brings back the previous one.');
       }
@@ -360,7 +393,7 @@ export function App() {
             canRedo={redoStack.length > 0}
             onUndo={undo}
             onRedo={redo}
-            onLoad={(f, t, how) => startFresh(f, t, how)}
+            onLoad={(f, t, how) => { if (!handleLink(t)) startFresh(f, t, how); }}
             onDownload={() => downloadText(scoreFileName(result.score.meta.title, format), text)}
             onPasteImage={takeImage}
             onMusicXml={() =>
@@ -398,7 +431,7 @@ export function App() {
               <SolfaKeypad score={result.score} text={text} onChange={(t) => replace('solfa', t)} />
             </details>
           )}
-          <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} rows={14} aria-label="Score text" />
+          <textarea value={text} onChange={(e) => { if (!handleLink(e.target.value)) setText(e.target.value); }} spellCheck={false} rows={14} aria-label="Score text" />
           <FormatHelp format={format} />
         </section>
 
