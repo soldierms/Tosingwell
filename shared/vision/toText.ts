@@ -94,14 +94,20 @@ function lyricLine(bars: ReadingBar[]): string | undefined {
   const toks: string[] = [];
   let any = false;
   let tiedIn = false;
+  let held = false; // the last syllable ended in "_" (held over the following notes, from MusicXML <extend/>)
   for (const bar of bars) {
     for (const ev of bar.events) {
       if (ev.grace) continue;
+      if (ev.kind === 'rest') held = false;
       if (ev.kind === 'note' && ev.pitches.length && !tiedIn) {
-        const l = ev.lyric?.trim();
+        let l = ev.lyric?.trim();
+        if (l && l.length > 1 && l.endsWith('_')) {
+          l = l.slice(0, -1).trim();
+          held = true;
+        } else if (l) held = false;
         if (l) any = true;
         // "E -" → "E-" (word continues); inner spaces become "~" so a syllable stays one token.
-        toks.push(l ? l.replace(/\s+-$/, '-').replace(/\s+/g, '~') : '*');
+        toks.push(l ? l.replace(/\s+-$/, '-').replace(/\s+/g, '~') : held ? '_' : '*');
       }
       tiedIn = ev.kind === 'note' && ev.tie;
     }
@@ -186,6 +192,7 @@ export function withoutHeader(text: string): string {
  */
 export function suspicious(r: ScoreReading): string[] {
   const out: string[] = [];
+  if (r.reader === 'file') return out; // a music file is exact: repeated bars and full certainty are normal
   for (const part of r.parts) {
     if (part.bars.length < 8) continue;
     const sig = (b: ReadingBar) =>

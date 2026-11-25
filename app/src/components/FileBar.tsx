@@ -3,6 +3,10 @@
 
 import { useRef, useState } from 'react';
 import { deleteScore, detectFormat, listScores, saveScore, type Format, type SavedScore } from '../storage/library';
+import type { Flag } from '../../../shared/model/types';
+
+/** Same test as isMusicXmlName in shared/musicxml/open.ts (kept here so that code loads only when needed). */
+const isMusicXmlName = (name: string) => /\.(musicxml|mxl|xml)$/i.test(name);
 
 interface Props {
   title: string;
@@ -17,6 +21,8 @@ interface Props {
   onMusicXml: () => void;
   /** A picture taken from the clipboard (goes to the photo reader). */
   onPasteImage: (file: File) => void;
+  /** A MusicXML file turned into score text, with things to check (shown with the checks). */
+  onOpenMusicXml: (format: Format, text: string, how: string, notes: Flag[]) => void;
 }
 
 /** The public website (GitHub Pages): shared links open here. */
@@ -30,7 +36,7 @@ T: | s :s :s :l | s :- :- :- |]
 B: | d :s, :l, :f, | d :- :- :- |]
 `;
 
-export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo, onLoad, onDownload, onMusicXml, onPasteImage }: Props) {
+export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo, onLoad, onDownload, onMusicXml, onPasteImage, onOpenMusicXml }: Props) {
   const [showList, setShowList] = useState(false);
   const [list, setList] = useState<SavedScore[]>([]);
   const [message, setMessage] = useState<string>();
@@ -54,8 +60,14 @@ export function FileBar({ title, format, text, canUndo, canRedo, onUndo, onRedo,
       say(`Opened the picture ${file.name} — it is ready in “Read a photo of a score”.`);
       return;
     }
-    if (/\.(musicxml|mxl|xml)$/i.test(file.name)) {
-      say('Opening MusicXML files is not supported yet — only exporting. Open a .solfa.txt or .staff.txt file.');
+    if (isMusicXmlName(file.name)) {
+      try {
+        const { openMusicXml } = await import('../../../shared/musicxml/open');
+        const opened = await openMusicXml(file.name, new Uint8Array(await file.arrayBuffer()));
+        onOpenMusicXml(opened.format, opened.text, `Opened ${file.name} (MusicXML). ↶ Undo brings back the previous score.`, opened.notes);
+      } catch (e) {
+        say(e instanceof Error ? e.message : `Could not open ${file.name}.`);
+      }
       return;
     }
     const content = await file.text();

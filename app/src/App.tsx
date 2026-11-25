@@ -229,9 +229,24 @@ export function App() {
   };
   const loadExample = (i: number) => startFresh(EXAMPLES[i].format, EXAMPLES[i].text);
 
+  /** A MusicXML file turned into text: open it like any score, and show what to check with the checks. */
+  const openedMusicXml = (f: Format, t: string, how: string, notes: Flag[]) => {
+    startFresh(f, t, how);
+    setReadingNotes(notes);
+  };
+  const openMusicXmlFile = async (file: File) => {
+    try {
+      const { openMusicXml } = await import('../../shared/musicxml/open');
+      const opened = await openMusicXml(file.name, new Uint8Array(await file.arrayBuffer()));
+      openedMusicXml(opened.format, opened.text, `Opened ${file.name} (MusicXML). ↶ Undo brings back the previous score.`, opened.notes);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : `Could not open ${file.name}.`);
+    }
+  };
+
   // Paste anywhere (outside the text boxes): a picture goes to the photo reader,
   // score text (lines starting S: A: T: B:) replaces the score — Undo brings the old one back.
-  // Drag and drop works the same way for picture files and .txt score files.
+  // Drag and drop works the same way for picture files and .txt score files; a MusicXML file opens as a score.
   useEffect(() => {
     const isTyping = (t: EventTarget | null) => t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement;
     const onPaste = (e: ClipboardEvent) => {
@@ -259,6 +274,8 @@ export function App() {
       setDragging(false);
       const all = [...(e.dataTransfer?.files ?? [])];
       if (!all.length) return;
+      const xml = all.find((x) => /\.(musicxml|mxl|xml)$/i.test(x.name));
+      if (xml) { void openMusicXmlFile(xml); return; }
       const pics = all.filter(isPicture);
       // A score text file wins over pictures dropped with it: it is the typed (checked) version of those pages.
       const f = all.find((x) => /\.txt$/i.test(x.name) || x.type.startsWith('text/'));
@@ -396,6 +413,7 @@ export function App() {
             onLoad={(f, t, how) => { if (!handleLink(t)) startFresh(f, t, how); }}
             onDownload={() => downloadText(scoreFileName(result.score.meta.title, format), text)}
             onPasteImage={takeImage}
+            onOpenMusicXml={openedMusicXml}
             onMusicXml={() =>
               downloadText(musicXmlFileName(result.score.meta.title), exportMusicXml(result.score, { tenorClef }), 'application/vnd.recordare.musicxml+xml')
             }

@@ -214,8 +214,10 @@ function readPart(partEl: XmlEl, name: string): RawPart {
         if (lyricEl) {
           const t = txt(lyricEl, 'text');
           const syl = txt(lyricEl, 'syllabic');
-          if (t) lyric = t + (syl === 'begin' || syl === 'middle' ? '-' : '');
-          else if (kid(lyricEl, 'extend')) lyric = '_';
+          const ext = kid(lyricEl, 'extend');
+          // A trailing "_" = the syllable is held over the next notes (melisma); readingToText fills them with "_".
+          if (t) lyric = t + (syl === 'begin' || syl === 'middle' ? '-' : '') + (ext && ext.attrs.type !== 'stop' ? '_' : '');
+          else if (ext) lyric = '_';
         }
         const tm = kid(el, 'time-modification');
         const tup = kids(notations, 'tuplet');

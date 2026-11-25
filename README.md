@@ -44,7 +44,8 @@ To print or make a PDF, use **🖨 Print** or **⬇ Export PDF** above the score
 **Saving:** your work is saved automatically in this browser. Use **💾 Save** to keep a score in
 **📚 My scores** (on this device), **⬇ Download** to keep a file you can back up or move to another device
 (open it again with **📂 Open file**), and **⬇ MusicXML** to open the score in MuseScore, Finale, Sibelius or
-Dorico. **↶ Undo / ↷ Redo** undo note fixes, photo readings and opened files.
+Dorico. **📂 Open file** also opens MusicXML files (`.musicxml`, `.xml` or `.mxl`) saved from those programs —
+export your score as MusicXML there, then open it here to see it in sol-fa, play it and make rehearsal recordings. **↶ Undo / ↷ Redo** undo note fixes, photo readings and opened files.
 
 **Copy and paste:** **📋 Copy** copies the score text; **📥 Paste** (or ⌘V / Ctrl+V anywhere outside the
 text boxes) pastes score text — or a picture of a score, which goes straight to the photo reader. You can also
@@ -150,7 +151,7 @@ tier). Compare readers with `npm run test:vision -- --provider claude` or `--pro
 | `shared/print/` | Paper sizes and page breaking for printing |
 | `shared/vision/` | The JSON shape Claude fills in, and turning it into a score |
 | `shared/edit/` | Small note edits used by the review screen |
-| `shared/musicxml/` | MusicXML export (checked against the official MusicXML 4.0 schema) |
+| `shared/musicxml/` | MusicXML export (checked against the official MusicXML 4.0 schema) and opening MusicXML / .mxl files |
 | `tests/` | Test library and helpers |
 | `tests/fixtures/` | Known scores, each typed in both sol-fa and staff notation |
 | `tests/vision/` | Test images for photo reading (with their correct answers) |

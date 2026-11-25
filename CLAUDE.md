@@ -204,7 +204,12 @@ How it works:
 
 - `app/src/storage/library.ts`: My scores + automatic draft in `localStorage` (try/catch everywhere; private
   browsing just skips). Files: `<title>.solfa.txt` / `<title>.staff.txt` (format from the name, else guessed).
-  Opening MusicXML is not supported (export only). `?example=N` skips the draft.
+  `?example=N` skips the draft.
+- Opening MusicXML (owner asked 2026-11-24): 📂 Open file or drag-and-drop a `.musicxml`/`.xml`/`.mxl` →
+  `shared/musicxml/open.ts` (lazy chunk): unzips `.mxl` in the browser (own small zip reader + `DecompressionStream`,
+  container.xml → root file), UTF-16 aware, then the Audiveris path `musicXmlToReading` → `readingToText` with
+  `reader:'file'` (no photo "suspicious" warnings; title from the file name if missing). Importer notes (piano left out,
+  short bars) show with the checks. Melisma `<extend/>` → `_`. Tests round-trip both fixtures through our exporter.
 - Undo/redo: `replace()` in App pushes the previous {format, text} for whole-score changes (note edits,
   readings, opened files, examples, "Edit this version"); typing uses the textarea's own undo. ⌘Z outside
   text fields.
@@ -248,7 +253,7 @@ How it works:
 - `app/src` — React UI; `app/src/render/staffRenderer.ts` draws staff notation with VexFlow
 - `shared/print` — page sizes and pagination · `app/src/print` — builds printable pages
 - `shared/vision` — reading schema + reading→text · `shared/edit` — note edits · `server/` — API-key holder
-- `shared/musicxml` — MusicXML export · `app/src/storage` — My scores, draft, files
+- `shared/musicxml` — MusicXML export, import, opening files · `app/src/storage` — My scores, draft, files
 - `tests/` — library tests + fixtures (each score typed in both notations)
 
 ## Status
@@ -259,5 +264,6 @@ How it works:
 - Phase 4 (photo reading, confidence flags, review/edit screen, vision test library): **done**; accuracy not yet
   measured — needs the owner's API key, then `npm run test:vision`.
 - Phase 5 (save/open, MusicXML export, undo, mobile layout, lazy loading, home-screen icon): **done**.
-- Ideas not built: opening MusicXML files directly (the importer exists for Audiveris), offline mode (service worker), more verses in the sol-fa view, voice-like
+- Opening MusicXML files (.musicxml/.xml/.mxl): **done** (2026-11-24).
+- Ideas not built: opening MIDI files, offline mode (service worker), more verses in the sol-fa view, voice-like
   playback sound.
