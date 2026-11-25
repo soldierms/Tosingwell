@@ -420,7 +420,7 @@ function ReaderKey({ onSaved }: { onSaved: () => void }) {
         )}
       </p>
       <div className="row">
-        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={provider === 'gemini' ? 'Paste your Gemini key (starts with AIza…)' : 'Paste your Claude key (starts with sk-ant-…)'} aria-label="Reading key" style={{ flex: 1, minWidth: 220 }} autoComplete="off" />
+        <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={provider === 'gemini' ? 'Paste your Gemini key (starts with AQ. or AIza…)' : 'Paste your Claude key (starts with sk-ant-…)'} aria-label="Reading key" style={{ flex: 1, minWidth: 220 }} autoComplete="off" />
         <button className="primary" onClick={() => { const ok = saveReader(provider, key); setSaved(ok ? (key ? 'Saved on this device.' : 'Key removed.') : 'This browser would not save it (private browsing?).'); onSaved(); if (ok && key) setOpen(false); }}>Save</button>
         {key && <button onClick={() => { setKey(''); saveReader(provider, ''); setSaved('Key removed from this device.'); onSaved(); }}>Remove</button>}
       </div>
